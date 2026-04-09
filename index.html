@@ -552,7 +552,7 @@ function renderMatrix() {
     POOL_MEMBERS.forEach(m => m.picks.forEach(p => golferSet.add(p)));
     const golfers = [...golferSet].sort((a, b) => a.localeCompare(b));
 
-    const members  = POOL_MEMBERS;
+    const members  = POOL_MEMBERS.filter(m => m.picks.length > 0);
     const CELL     = 32;
     const LEFT_PAD = 188;   // room for golfer names
     const TOP_PAD  = 130;   // room for rotated member names
@@ -587,12 +587,9 @@ function renderMatrix() {
         const d = find(g);
         const score = d ? d.scoreDisplay : '';
         const scCol = d ? (d.score < 0 ? '#c0392b' : d.score > 0 ? '#555' : '#27ae60') : '#aaa';
-        svg += `<text x="${LEFT_PAD - 10}" y="${y + 5}" text-anchor="end"
-            font-size="13" fill="#2c2c2c" dominant-baseline="middle">${esc(g)}</text>`;
-        if (score) {
-            svg += `<text x="${LEFT_PAD - 2}" y="${y + 5}" text-anchor="end"
-                font-size="11" fill="${scCol}" dominant-baseline="middle" font-weight="bold"> ${esc(score)}</text>`;
-        }
+        svg += `<text x="${LEFT_PAD - 10}" y="${y}" text-anchor="end" dominant-baseline="middle" font-size="13" fill="#2c2c2c">
+            ${esc(g)}${score ? `<tspan fill="${scCol}" font-weight="bold" font-size="11"> ${esc(score)}</tspan>` : ''}
+        </text>`;
     });
 
     // Member name labels (rotated -45° above columns)
