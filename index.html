@@ -419,6 +419,41 @@
         body.dark .rivalry-diff-pick { color: #8ab89a; }
         body.dark .rivalry-note { color: #556655; }
 
+        /* Tabs */
+        .tab-bar {
+            display: flex;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #e0d8c8;
+            padding: 0 12px;
+            gap: 0;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 12px 16px;
+            font-family: 'Georgia', serif;
+            font-size: 0.8em;
+            color: #888;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: -2px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .tab-btn:hover { color: #1a5c38; }
+        .tab-btn.active { color: #1a5c38; border-bottom-color: #1a5c38; font-weight: bold; }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        body.dark .tab-bar { border-bottom-color: #2a3a2a; }
+        body.dark .tab-btn { color: #556655; }
+        body.dark .tab-btn:hover { color: #6dba8a; }
+        body.dark .tab-btn.active { color: #6dba8a; border-bottom-color: #6dba8a; }
+
         @media (max-width: 600px) {
             header h1 { font-size: 1.5em; }
             th.r3, td.r3, th.r4, td.r4 { display: none; }
@@ -457,28 +492,28 @@
     </div>
 
     <div class="card">
-        <div class="card-header">Who Picked Whom</div>
-        <div id="picksMatrix" style="overflow-x:auto; padding: 0 0 8px;"></div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">Golfer Popularity</div>
-        <div id="popularityChart" style="padding: 20px 24px;"></div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">Score Distribution</div>
-        <div id="histogramChart" style="overflow-x:auto; padding: 20px 24px 8px;"></div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">Pool Standings · Bubble View</div>
-        <div id="bubbleChart" style="overflow-x:auto; padding: 16px 24px;"></div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">Rivalries</div>
-        <div id="rivalriesPanel" style="padding: 16px 20px;"></div>
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="matrix"     onclick="switchTab('matrix')">Matrix</button>
+            <button class="tab-btn"        data-tab="popularity" onclick="switchTab('popularity')">Popularity</button>
+            <button class="tab-btn"        data-tab="histogram"  onclick="switchTab('histogram')">Distribution</button>
+            <button class="tab-btn"        data-tab="bubble"     onclick="switchTab('bubble')">Bubble</button>
+            <button class="tab-btn"        data-tab="rivalries"  onclick="switchTab('rivalries')">Rivalries</button>
+        </div>
+        <div id="tab-matrix" class="tab-panel active">
+            <div id="picksMatrix" style="overflow-x:auto; padding: 0 0 8px;"></div>
+        </div>
+        <div id="tab-popularity" class="tab-panel">
+            <div id="popularityChart" style="padding: 20px 24px;"></div>
+        </div>
+        <div id="tab-histogram" class="tab-panel">
+            <div id="histogramChart" style="overflow-x:auto; padding: 20px 24px 8px;"></div>
+        </div>
+        <div id="tab-bubble" class="tab-panel">
+            <div id="bubbleChart" style="overflow-x:auto; padding: 16px 24px;"></div>
+        </div>
+        <div id="tab-rivalries" class="tab-panel">
+            <div id="rivalriesPanel" style="padding: 16px 20px;"></div>
+        </div>
     </div>
 
 </div>
@@ -1233,6 +1268,14 @@ document.getElementById('leaderboard').addEventListener('mousemove', e => {
 document.getElementById('leaderboard').addEventListener('mouseleave', () => {
     tooltip.style.display = 'none';
 });
+
+// ── Tabs ─────────────────────────────────────────────────────
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p =>
+        p.classList.toggle('active', p.id === `tab-${name}`));
+}
 
 // ── Dark mode ────────────────────────────────────────────────
 function toggleDark() {
