@@ -189,6 +189,54 @@
 
         .pool-highlight td { background: #fffde7 !important; }
 
+        /* Picker tooltip */
+        .lb-name { position: relative; cursor: default; }
+
+        .picker-tooltip {
+            display: none;
+            position: fixed;
+            background: #1a3020;
+            color: #e8f5e9;
+            border: 1px solid #c9a84c;
+            border-radius: 7px;
+            padding: 9px 13px;
+            font-size: 0.82em;
+            font-family: sans-serif;
+            white-space: normal;
+            max-width: 260px;
+            z-index: 999;
+            pointer-events: none;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            line-height: 1.6;
+        }
+
+        .picker-tooltip .tt-title {
+            color: #c9a84c;
+            font-weight: bold;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .picker-tooltip .tt-names {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .picker-tooltip .tt-name {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 1px 7px;
+            font-size: 0.95em;
+        }
+
+        .picker-tooltip .tt-none {
+            color: #888;
+            font-style: italic;
+        }
+
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -210,6 +258,8 @@
     <h1>⛳ Masters Pool 2026</h1>
     <div class="subtitle">The World's Only International Cross-Border Masters Pool</div>
 </header>
+
+<div class="picker-tooltip" id="pickerTooltip"></div>
 
 <div class="status-bar">
     <span class="dot" id="dot"></span>
@@ -410,13 +460,31 @@ function renderLeaderboard() {
     const nonActive = all.filter(g => g.status !== 'active')
                          .sort((a, b) => a.score - b.score);
 
+    // Build reverse map: golfer name → list of member names who picked them
+    const pickerMap = {};
+    POOL_MEMBERS.forEach(m => {
+        m.picks.forEach(p => {
+            const key = p.toLowerCase();
+            if (!pickerMap[key]) pickerMap[key] = [];
+            pickerMap[key].push(m.name);
+        });
+    });
+    const pickersFor = name => {
+        return pickerMap[name.toLowerCase()]
+            || pickerMap[name.toLowerCase().split(' ').pop()]
+            || [];
+    };
+
     const row = g => {
-        const pool   = isPoolPick(g.name);
-        const badge  = g.status !== 'active'
+        const pool    = isPoolPick(g.name);
+        const pickers = pickersFor(g.name);
+        const badge   = g.status !== 'active'
             ? ` <span class="grayed">(${g.status.toUpperCase()})</span>` : '';
+        const pickersAttr = pickers.length
+            ? `data-pickers="${esc(pickers.join(', '))}"` : 'data-pickers=""';
         return `<tr class="${pool ? 'pool-highlight' : ''}">
             <td class="lb-pos">${g.position}</td>
-            <td class="lb-name ${pool ? 'pool-pick' : ''}">${esc(g.name)}${badge}</td>
+            <td class="lb-name ${pool ? 'pool-pick' : ''}" ${pickersAttr}>${esc(g.name)}${badge}</td>
             <td class="lb-score ${cls(g.score)}">${g.scoreDisplay}</td>
             <td class="lb-round">${g.rounds[1] ?? '--'}</td>
             <td class="lb-round">${g.rounds[2] ?? '--'}</td>
@@ -573,6 +641,38 @@ function setDot(s) {
     if (s === 'refreshing') d.classList.add('refreshing');
     if (s === 'error')      d.classList.add('error');
 }
+
+// ── Picker tooltip ───────────────────────────────────────────
+const tooltip = document.getElementById('pickerTooltip');
+
+document.getElementById('leaderboard').addEventListener('mouseover', e => {
+    const cell = e.target.closest('[data-pickers]');
+    if (!cell) return;
+    const pickers = cell.dataset.pickers ? cell.dataset.pickers.split(', ') : [];
+    const name    = cell.textContent.replace(/\(.*?\)/g, '').trim();
+    if (pickers.length) {
+        const tags = pickers.map(p => `<span class="tt-name">${esc(p)}</span>`).join('');
+        tooltip.innerHTML = `<div class="tt-title">Picked by · ${pickers.length}</div><div class="tt-names">${tags}</div>`;
+    } else {
+        tooltip.innerHTML = `<div class="tt-title">${esc(name)}</div><span class="tt-none">Not picked by anyone</span>`;
+    }
+    tooltip.style.display = 'block';
+});
+
+document.getElementById('leaderboard').addEventListener('mousemove', e => {
+    const pad = 14;
+    let x = e.clientX + pad;
+    let y = e.clientY + pad;
+    // Keep tooltip inside viewport
+    if (x + tooltip.offsetWidth > window.innerWidth - 8)  x = e.clientX - tooltip.offsetWidth - pad;
+    if (y + tooltip.offsetHeight > window.innerHeight - 8) y = e.clientY - tooltip.offsetHeight - pad;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+});
+
+document.getElementById('leaderboard').addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+});
 
 // ── Boot ─────────────────────────────────────────────────────
 fetchScores();
