@@ -260,6 +260,68 @@
         .pop-count { font-size: 0.8em; color: white; font-weight: bold; white-space: nowrap; }
         .pop-score { width: 50px; flex-shrink: 0; font-weight: bold; font-size: 0.88em; }
 
+        /* Dark mode toggle button */
+        .dark-toggle {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 20px;
+            padding: 5px 13px;
+            font-size: 0.8em;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: background 0.2s;
+        }
+        .dark-toggle:hover { background: rgba(255,255,255,0.22); }
+
+        /* Dark mode overrides */
+        body.dark { background: #111815; color: #dde8dd; }
+        body.dark .card { background: #1a2118; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+        body.dark th { background: #162014; color: #8ab89a; border-bottom-color: #2a3a2a; }
+        body.dark td { border-bottom-color: #222e22; }
+        body.dark tbody tr:hover td { background: #1e2a1e; }
+        body.dark .first-row td  { background: #1c2c18; }
+        body.dark .second-row td { background: #182018; }
+        body.dark .pool-highlight td { background: #26280e !important; }
+        body.dark .cut-divider td { background: #181e10; color: #8a8060; }
+        body.dark .tag { background: #162814; border-color: #2a5030; }
+        body.dark .tag.cut-tag { background: #222; border-color: #333; color: #777; }
+        body.dark .pop-name { color: #b0c8b0; }
+        body.dark .pop-bar-wrap { background: #222e22; }
+        body.dark .empty-state { color: #556655; }
+        body.dark .lb-pos   { color: #778877; }
+        body.dark .lb-round { color: #778877; }
+        body.dark .lb-thru  { color: #99aa99; }
+        body.dark .lb-name  { color: #dde8dd; }
+        body.dark .lb-name.pool-pick { color: #6dba8a; font-weight: bold; }
+        body.dark .rank-cell { color: #6dba8a; }
+        body.dark .grayed { color: #556655; }
+        body.dark .hl-many { color: #556655; }
+        body.dark .total-score.even { color: #6dba8a; }
+
+        /* Projected cut line */
+        .cut-line-row td {
+            background: #fff0f0;
+            color: #a03020;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 5px 14px;
+            font-style: italic;
+            border-top: 1px dashed #e0a090;
+        }
+        body.dark .cut-line-row td {
+            background: #2a1010;
+            color: #cc7060;
+            border-top-color: #5a2020;
+        }
+
+        /* Score ticker */
+        @keyframes scoreIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        .score-animate { animation: scoreIn 0.4s ease both; }
+
         @media (max-width: 600px) {
             header h1 { font-size: 1.5em; }
             th.r3, td.r3, th.r4, td.r4 { display: none; }
@@ -269,7 +331,8 @@
 </head>
 <body>
 
-<header>
+<header style="position:relative;">
+    <button class="dark-toggle" id="darkToggle" onclick="toggleDark()">🌙 Dark</button>
     <h1>⛳ Masters Pool 2026</h1>
     <div class="subtitle">The World's Only International Cross-Border Masters Pool</div>
 </header>
@@ -324,18 +387,18 @@ const POOL_MEMBERS = [
     { name: "Oli",           picks: [] },
     { name: "Marshall",      picks: [] },
     { name: "Robbie",        picks: [] },
-    { name: "Lohan",         picks: [] },
+    { name: "Lohan",         picks: ["Justin Rose", "Rory McIlroy", "Scottie Scheffler", "Tommy Fleetwood"] },
     { name: "Jordan Vann",   picks: [] },
     { name: "Tom Bebbington",picks: [] },
     { name: "Topher",        picks: [] },
     { name: "Gordan Hayward",picks: [] },
     { name: "Van Tuyle",     picks: [] },
-    { name: "Smilestone",    picks: [] },
+    { name: "Smilestone",    picks: ["Ludvig Åberg", "Scottie Scheffler", "Tommy Fleetwood", "Xander Schauffele"] },
     { name: "Mano",          picks: ["Scottie Scheffler", "Jon Rahm", "Xander Schauffele", "Tommy Fleetwood"] },
     { name: "Bokla",         picks: [] },
     { name: "Macdougall",    picks: [] },
     { name: "Ish",           picks: [] },
-    { name: "Marty",         picks: [] },
+    { name: "Marty",         picks: ["Ludvig Åberg", "Patrick Reed", "Rory McIlroy", "Scottie Scheffler"] },
     { name: "Karlson",       picks: [] },
     { name: "Scooter",       picks: [] },
     { name: "Jon Bebbington",picks: [] },
@@ -344,6 +407,7 @@ const POOL_MEMBERS = [
     { name: "Daniela",       picks: [] },
     { name: "Peters",        picks: [] },
     { name: "Freeman",       picks: [] },
+    { name: "Josh Vann",     picks: [] },
 ];
 // ============================================================
 
@@ -459,12 +523,13 @@ function renderPool() {
             <td class="rank-cell">${medal}</td>
             <td><strong>${esc(m.name)}</strong></td>
             <td class="picks-cell">${tags}</td>
-            <td class="total-score ${cls(m.total)}">${fmt(m.total)}</td>
+            <td class="total-score ${cls(m.total)} score-animate" data-score="${m.total}">${fmt(m.total)}</td>
             <td class="holes-left-cell">${holesLeftDisplay(m.holesLeft)}</td>
         </tr>`;
     });
 
     document.getElementById('poolStandings').innerHTML = html + '</tbody></table>';
+    animateScores();
 }
 
 // ── Render leaderboard ───────────────────────────────────────
@@ -532,7 +597,17 @@ function renderLeaderboard() {
         <th class="lb-thru">Thru</th>
     </tr></thead><tbody>`;
 
-    active.forEach(g => { html += row(g); });
+    // Projected cut line (shown during R1 & R2 only — after R2 cut is already made)
+    const roundNum = parseInt((roundStatus.match(/\d+/) || ['0'])[0]);
+    const showProjectedCut = roundNum <= 2 && nonActive.length === 0;
+    const CUT_POSITION = 50;
+
+    active.forEach((g, i) => {
+        html += row(g);
+        if (showProjectedCut && i === CUT_POSITION - 1 && i < active.length - 1) {
+            html += `<tr class="cut-line-row"><td colspan="8">✂ Projected Cut Line</td></tr>`;
+        }
+    });
     if (nonActive.length) {
         html += `<tr class="cut-divider"><td colspan="8">— Missed Cut / Withdrawn —</td></tr>`;
         nonActive.forEach(g => { html += row(g); });
@@ -559,7 +634,11 @@ function renderMatrix() {
     const W = LEFT_PAD + members.length * CELL + 2;
     const H = TOP_PAD  + golfers.length  * CELL + 2;
 
-    const BG_ALT = '#f7f4ee';
+    const dark   = document.body.classList.contains('dark');
+    const BG_ALT = dark ? '#1a2118' : '#f7f4ee';
+    const GRID   = dark ? '#2a3a2a' : '#ddd';
+    const TXTCOL = dark ? '#c0d0c0' : '#2c2c2c';
+    const BORDER = dark ? '#2a3a2a' : '#bbb';
 
     let svg = `<svg xmlns="http://www.w3.org/2000/svg"
         width="${W}" height="${H}"
@@ -577,7 +656,7 @@ function renderMatrix() {
     members.forEach((m, mi) => {
         const x = LEFT_PAD + mi * CELL;
         svg += `<line x1="${x}" y1="${TOP_PAD}" x2="${x}" y2="${H}"
-            stroke="#ddd" stroke-width="1"/>`;
+            stroke="${GRID}" stroke-width="1"/>`;
     });
 
     // Golfer name labels (right-aligned, vertically centered in row)
@@ -587,7 +666,7 @@ function renderMatrix() {
         const d = find(g);
         const score = d ? d.scoreDisplay : '';
         const scCol = d ? (d.score < 0 ? '#c0392b' : d.score > 0 ? '#555' : '#27ae60') : '#aaa';
-        svg += `<text x="${LEFT_PAD - 10}" y="${y}" text-anchor="end" dominant-baseline="middle" font-size="13" fill="#2c2c2c">
+        svg += `<text x="${LEFT_PAD - 10}" y="${y}" text-anchor="end" dominant-baseline="middle" font-size="13" fill="${TXTCOL}">
             ${esc(g)}${score ? `<tspan fill="${scCol}" font-weight="bold" font-size="11"> ${esc(score)}</tspan>` : ''}
         </text>`;
     });
@@ -596,7 +675,7 @@ function renderMatrix() {
     members.forEach((m, mi) => {
         const x = LEFT_PAD + mi * CELL + CELL / 2;
         svg += `<text transform="translate(${x},${TOP_PAD - 8}) rotate(-45)"
-            text-anchor="start" font-size="12.5" fill="#2c2c2c">${esc(m.name)}</text>`;
+            text-anchor="start" font-size="12.5" fill="${TXTCOL}">${esc(m.name)}</text>`;
     });
 
     // Filled squares — colored by golfer's current score
@@ -621,13 +700,13 @@ function renderMatrix() {
     // Outer border lines
     svg += `<rect x="${LEFT_PAD}" y="${TOP_PAD}"
         width="${members.length * CELL}" height="${golfers.length * CELL}"
-        fill="none" stroke="#bbb" stroke-width="1"/>`;
+        fill="none" stroke="${BORDER}" stroke-width="1"/>`;
 
     // Horizontal row dividers
     golfers.forEach((_, gi) => {
         const y = TOP_PAD + gi * CELL;
         svg += `<line x1="${LEFT_PAD}" y1="${y}" x2="${W}" y2="${y}"
-            stroke="#ddd" stroke-width="1"/>`;
+            stroke="${GRID}" stroke-width="1"/>`;
     });
 
     svg += '</svg>';
@@ -749,18 +828,24 @@ function renderBubble() {
         return PAD_T + PLOT_H * 0.2 + (PLOT_H * 0.6 * i / Math.max(bands - 1, 1));
     });
 
+    const dark     = document.body.classList.contains('dark');
+    const axisCol  = dark ? '#2a3a2a' : '#ccc';
+    const tickCol  = dark ? '#3a4a3a' : '#bbb';
+    const labelCol = dark ? '#778877' : '#666';
+    const nameCol  = dark ? '#c0d0c0' : '#2c2c2c';
+
     let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="font-family:Georgia,serif;display:block;min-width:${W}px">`;
 
     // X axis line
     const axisY = H - PAD_B;
-    svg += `<line x1="${PAD_L}" y1="${axisY}" x2="${W - PAD_R}" y2="${axisY}" stroke="#ccc" stroke-width="1"/>`;
+    svg += `<line x1="${PAD_L}" y1="${axisY}" x2="${W - PAD_R}" y2="${axisY}" stroke="${axisCol}" stroke-width="1"/>`;
 
     // Score tick marks on X axis
     for (let s = Math.ceil(minScore); s <= Math.floor(maxScore); s++) {
         const x = xPos(s);
         const label = s === 0 ? 'E' : s > 0 ? `+${s}` : String(s);
-        const col   = s < 0 ? '#c0392b' : s > 0 ? '#888' : '#27ae60';
-        svg += `<line x1="${x}" y1="${axisY - 3}" x2="${x}" y2="${axisY + 3}" stroke="#bbb" stroke-width="1"/>`;
+        const col   = s < 0 ? '#c0392b' : s > 0 ? (dark ? '#778877' : '#888') : '#27ae60';
+        svg += `<line x1="${x}" y1="${axisY - 3}" x2="${x}" y2="${axisY + 3}" stroke="${tickCol}" stroke-width="1"/>`;
         svg += `<text x="${x}" y="${axisY + 15}" text-anchor="middle" font-size="11" fill="${col}">${label}</text>`;
     }
 
@@ -782,7 +867,7 @@ function renderBubble() {
         svg += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" fill="white" font-weight="bold">${esc(scoreLabel)}</text>`;
 
         // Name above bubble
-        svg += `<text x="${x}" y="${y - r - 5}" text-anchor="middle" font-size="12" fill="#2c2c2c">${esc(m.name)}</text>`;
+        svg += `<text x="${x}" y="${y - r - 5}" text-anchor="middle" font-size="12" fill="${nameCol}">${esc(m.name)}</text>`;
     });
 
     // Legend note
@@ -885,7 +970,53 @@ document.getElementById('leaderboard').addEventListener('mouseleave', () => {
     tooltip.style.display = 'none';
 });
 
+// ── Dark mode ────────────────────────────────────────────────
+function toggleDark() {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('masters_dark', document.body.classList.contains('dark') ? '1' : '0');
+    updateDarkBtn();
+    // Re-render SVG-based charts so they pick up new colors
+    renderMatrix();
+    renderBubble();
+}
+
+function updateDarkBtn() {
+    const btn = document.getElementById('darkToggle');
+    btn.textContent = document.body.classList.contains('dark') ? '☀️ Light' : '🌙 Dark';
+}
+
+function initDarkMode() {
+    if (localStorage.getItem('masters_dark') === '1') {
+        document.body.classList.add('dark');
+    }
+    updateDarkBtn();
+}
+
+// ── Score ticker ──────────────────────────────────────────────
+let firstLoad = true;
+
+function animateScores() {
+    if (!firstLoad) return;
+    firstLoad = false;
+    document.querySelectorAll('.total-score[data-score]').forEach(el => {
+        const target   = parseInt(el.dataset.score) || 0;
+        if (target === 0) return; // E — nothing to count
+        const duration = 700;
+        const start    = Date.now();
+        function tick() {
+            const p       = Math.min((Date.now() - start) / duration, 1);
+            const eased   = 1 - Math.pow(1 - p, 3);
+            const current = Math.round(target * eased);
+            el.textContent = fmt(current);
+            if (p < 1) requestAnimationFrame(tick);
+            else el.textContent = fmt(target);
+        }
+        requestAnimationFrame(tick);
+    });
+}
+
 // ── Boot ─────────────────────────────────────────────────────
+initDarkMode();
 fetchScores();
 setInterval(fetchScores, REFRESH_MS);
 </script>
