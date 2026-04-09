@@ -382,32 +382,32 @@
 //  Names must match the ESPN leaderboard spelling exactly.
 // ============================================================
 const POOL_MEMBERS = [
-    { name: "Tano",          picks: [] },
-    { name: "Heingartner",   picks: [] },
-    { name: "Oli",           picks: [] },
-    { name: "Marshall",      picks: [] },
-    { name: "Robbie",        picks: [] },
-    { name: "Lohan",         picks: ["Justin Rose", "Rory McIlroy", "Scottie Scheffler", "Tommy Fleetwood"] },
-    { name: "Jordan Vann",   picks: [] },
-    { name: "Tom Bebbington",picks: [] },
-    { name: "Topher",        picks: [] },
-    { name: "Gordan Hayward",picks: [] },
-    { name: "Van Tuyle",     picks: [] },
-    { name: "Smilestone",    picks: ["Ludvig Åberg", "Scottie Scheffler", "Tommy Fleetwood", "Xander Schauffele"] },
-    { name: "Mano",          picks: ["Scottie Scheffler", "Jon Rahm", "Xander Schauffele", "Tommy Fleetwood"] },
-    { name: "Bokla",         picks: [] },
-    { name: "Macdougall",    picks: [] },
-    { name: "Ish",           picks: [] },
-    { name: "Marty",         picks: ["Ludvig Åberg", "Patrick Reed", "Rory McIlroy", "Scottie Scheffler"] },
-    { name: "Karlson",       picks: [] },
-    { name: "Scooter",       picks: [] },
-    { name: "Jon Bebbington",picks: [] },
-    { name: "Pheeny",        picks: [] },
-    { name: "Chapman",       picks: [] },
-    { name: "Daniela",       picks: [] },
-    { name: "Peters",        picks: [] },
-    { name: "Freeman",       picks: [] },
-    { name: "Josh Vann",     picks: [] },
+    { name: "Tano",          paid: true,  picks: [] },
+    { name: "Heingartner",   paid: false, picks: [] },
+    { name: "Oli",           paid: true,  picks: [] },
+    { name: "Marshall",      paid: false, picks: [] },
+    { name: "Robbie",        paid: true,  picks: [] },
+    { name: "Lohan",         paid: true,  picks: ["Justin Rose", "Rory McIlroy", "Scottie Scheffler", "Tommy Fleetwood"] },
+    { name: "Jordan Vann",   paid: true,  picks: [] },
+    { name: "Tom Bebbington",paid: false, picks: [] },
+    { name: "Topher",        paid: false, picks: [] },
+    { name: "Gordan Hayward",paid: true,  picks: [] },
+    { name: "Van Tuyle",     paid: true,  picks: [] },
+    { name: "Smilestone",    paid: true,  picks: ["Ludvig Åberg", "Scottie Scheffler", "Tommy Fleetwood", "Xander Schauffele"] },
+    { name: "Mano",          paid: true,  picks: ["Scottie Scheffler", "Jon Rahm", "Xander Schauffele", "Tommy Fleetwood"] },
+    { name: "Bokla",         paid: true,  picks: [] },
+    { name: "Macdougall",    paid: true,  picks: [] },
+    { name: "Ish",           paid: false, picks: [] },
+    { name: "Marty",         paid: false, picks: ["Ludvig Åberg", "Patrick Reed", "Rory McIlroy", "Scottie Scheffler"] },
+    { name: "Karlson",       paid: true,  picks: [] },
+    { name: "Scooter",       paid: true,  picks: [] },
+    { name: "Jon Bebbington",paid: false, picks: [] },
+    { name: "Pheeny",        paid: true,  picks: [] },
+    { name: "Chapman",       paid: false, picks: [] },
+    { name: "Daniela",       paid: false, picks: [] },
+    { name: "Peters",        paid: true,  picks: [] },
+    { name: "Freeman",       paid: true,  picks: [] },
+    { name: "Josh Vann",     paid: true,  picks: [] },
 ];
 // ============================================================
 
@@ -521,7 +521,7 @@ function renderPool() {
 
         html += `<tr class="${rowCls}">
             <td class="rank-cell">${medal}</td>
-            <td><strong>${esc(m.name)}</strong></td>
+            <td><strong>${esc(m.name)}</strong> ${m.paid ? '<span title="Paid">✅</span>' : '<span title="Not paid" style="opacity:0.4">💸</span>'}</td>
             <td class="picks-cell">${tags}</td>
             <td class="total-score ${cls(m.total)} score-animate" data-score="${m.total}">${fmt(m.total)}</td>
             <td class="holes-left-cell">${holesLeftDisplay(m.holesLeft)}</td>
