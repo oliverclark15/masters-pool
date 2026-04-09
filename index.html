@@ -322,6 +322,103 @@
         @keyframes scoreIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
         .score-animate { animation: scoreIn 0.4s ease both; }
 
+        /* Rivalries */
+        .rivalry-cluster {
+            border: 1px solid #e0d8c8;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+        .rivalry-cluster:last-child { margin-bottom: 0; }
+
+        .rivalry-shared {
+            background: #f5efe0;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-family: sans-serif;
+            font-size: 0.82em;
+        }
+
+        .rivalry-shared-label {
+            color: #888;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        .rivalry-shared-pick {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: white;
+            border: 1px solid #d0c8b0;
+            border-radius: 20px;
+            padding: 3px 11px;
+        }
+
+        .rivalry-pick-name { color: #2c2c2c; font-weight: 500; }
+        .rivalry-pick-score { font-weight: bold; font-size: 0.95em; }
+
+        .rivalry-members {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 12px;
+            gap: 10px;
+            background: white;
+        }
+
+        .rivalry-member-card {
+            flex: 1;
+            min-width: 100px;
+            background: #fafafa;
+            border-radius: 6px;
+            padding: 10px 12px;
+            text-align: center;
+            font-family: sans-serif;
+        }
+
+        .rivalry-member-name {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .rivalry-diff-pick {
+            font-size: 1.05em;
+            font-weight: bold;
+            color: #1a3020;
+            margin-bottom: 3px;
+        }
+
+        .rivalry-diff-score {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .rivalry-note {
+            font-family: sans-serif;
+            font-size: 0.78em;
+            color: #888;
+            padding: 0 0 14px;
+        }
+
+        body.dark .rivalry-cluster { border-color: #2a3a2a; }
+        body.dark .rivalry-shared { background: #162014; }
+        body.dark .rivalry-shared-label { color: #556655; }
+        body.dark .rivalry-shared-pick { background: #1a2118; border-color: #2a3a2a; }
+        body.dark .rivalry-pick-name { color: #c0d0c0; }
+        body.dark .rivalry-members { background: #1a2118; }
+        body.dark .rivalry-member-card { background: #141e14; }
+        body.dark .rivalry-member-name { color: #556655; }
+        body.dark .rivalry-diff-pick { color: #8ab89a; }
+        body.dark .rivalry-note { color: #556655; }
+
         @media (max-width: 600px) {
             header h1 { font-size: 1.5em; }
             th.r3, td.r3, th.r4, td.r4 { display: none; }
@@ -377,6 +474,11 @@
     <div class="card">
         <div class="card-header">Pool Standings · Bubble View</div>
         <div id="bubbleChart" style="overflow-x:auto; padding: 16px 24px;"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">Rivalries</div>
+        <div id="rivalriesPanel" style="padding: 16px 20px;"></div>
     </div>
 
 </div>
@@ -622,7 +724,94 @@ function renderLeaderboard() {
     document.getElementById('leaderboard').innerHTML = html + '</tbody></table>';
 }
 
-function renderAll() { renderPool(); renderLeaderboard(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); }
+function renderAll() { renderPool(); renderLeaderboard(); renderRivalries(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); }
+
+// ── Rivalries ─────────────────────────────────────────────────
+function renderRivalries() {
+    const container = document.getElementById('rivalriesPanel');
+    const withPicks = POOL_MEMBERS.filter(m => m.picks.length === 4);
+
+    if (withPicks.length < 2) {
+        container.innerHTML = '<div class="empty-state">Need more picks to find rivalries.</div>';
+        return;
+    }
+
+    // Find all groups of members sharing exactly 3 picks
+    const clusterMap = {};
+    for (let i = 0; i < withPicks.length; i++) {
+        for (let j = i + 1; j < withPicks.length; j++) {
+            const a = withPicks[i], b = withPicks[j];
+            const shared = a.picks.filter(p =>
+                b.picks.some(q => q.toLowerCase() === p.toLowerCase())
+            );
+            if (shared.length >= 3) {
+                const key = [...shared].sort().join('||');
+                if (!clusterMap[key]) clusterMap[key] = { shared, members: new Map() };
+                const cluster = clusterMap[key];
+                if (!cluster.members.has(a.name)) {
+                    const diff = a.picks.find(p => !shared.some(s => s.toLowerCase() === p.toLowerCase()));
+                    cluster.members.set(a.name, { member: a, diffPick: diff });
+                }
+                if (!cluster.members.has(b.name)) {
+                    const diff = b.picks.find(p => !shared.some(s => s.toLowerCase() === p.toLowerCase()));
+                    cluster.members.set(b.name, { member: b, diffPick: diff });
+                }
+            }
+        }
+    }
+
+    const clusters = Object.values(clusterMap);
+    if (!clusters.length) {
+        container.innerHTML = '<div class="empty-state">No rivalries yet — no two members share 3 picks.</div>';
+        return;
+    }
+
+    // Sort: biggest cluster first, then by shared picks score (best to worst)
+    clusters.sort((a, b) => b.members.size - a.members.size);
+
+    let html = `<div class="rivalry-note">${clusters.length} rivalry group${clusters.length > 1 ? 's' : ''} found — members sharing 3 picks, separated only by their 4th</div>`;
+
+    clusters.forEach(({ shared, members }) => {
+        // Shared picks chips
+        const sharedTags = shared.map(p => {
+            const d = find(p);
+            const scoreStr = d ? d.scoreDisplay : '?';
+            return `<span class="rivalry-shared-pick">
+                <span class="rivalry-pick-name">${esc(last(p))}</span>
+                <span class="rivalry-pick-score ${d ? cls(d.score) : ''}">${esc(scoreStr)}</span>
+            </span>`;
+        }).join('');
+
+        // Member cards sorted by differentiating pick score (best first)
+        const memberList = [...members.values()].sort((a, b) => {
+            const da = a.diffPick ? find(a.diffPick) : null;
+            const db = b.diffPick ? find(b.diffPick) : null;
+            return (da?.score ?? 999) - (db?.score ?? 999);
+        });
+
+        const memberCards = memberList.map(({ member, diffPick }, rank) => {
+            const d = diffPick ? find(diffPick) : null;
+            const scoreStr = d ? d.scoreDisplay : '?';
+            const borderCol = d ? heatColor(d.score) : '#ccc';
+            const crown = rank === 0 ? ' 👑' : '';
+            return `<div class="rivalry-member-card" style="border-top: 3px solid ${borderCol}">
+                <div class="rivalry-member-name">${esc(member.name)}</div>
+                <div class="rivalry-diff-pick">${esc(diffPick ? last(diffPick) : '—')}</div>
+                <div class="rivalry-diff-score" style="color:${borderCol}">${esc(scoreStr)}${crown}</div>
+            </div>`;
+        }).join('');
+
+        html += `<div class="rivalry-cluster">
+            <div class="rivalry-shared">
+                <span class="rivalry-shared-label">Shared</span>
+                ${sharedTags}
+            </div>
+            <div class="rivalry-members">${memberCards}</div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+}
 
 // ── Who Picked Whom matrix ───────────────────────────────────
 function renderMatrix() {
