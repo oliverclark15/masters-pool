@@ -370,6 +370,11 @@
     </div>
 
     <div class="card">
+        <div class="card-header">Score Distribution</div>
+        <div id="histogramChart" style="overflow-x:auto; padding: 20px 24px 8px;"></div>
+    </div>
+
+    <div class="card">
         <div class="card-header">Pool Standings · Bubble View</div>
         <div id="bubbleChart" style="overflow-x:auto; padding: 16px 24px;"></div>
     </div>
@@ -617,7 +622,7 @@ function renderLeaderboard() {
     document.getElementById('leaderboard').innerHTML = html + '</tbody></table>';
 }
 
-function renderAll() { renderPool(); renderLeaderboard(); renderMatrix(); renderPopularity(); renderBubble(); }
+function renderAll() { renderPool(); renderLeaderboard(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); }
 
 // ── Who Picked Whom matrix ───────────────────────────────────
 function renderMatrix() {
@@ -732,6 +737,73 @@ function renderMatrix() {
     </div>`;
 
     container.innerHTML = svg + legend;
+}
+
+// ── Score distribution histogram ─────────────────────────────
+function renderHistogram() {
+    const container = document.getElementById('histogramChart');
+    const dark = document.body.classList.contains('dark');
+    const withPicks = POOL_MEMBERS.filter(m => m.picks.length > 0);
+
+    if (withPicks.length < 2) {
+        container.innerHTML = '<div class="empty-state">Waiting for more picks.</div>';
+        return;
+    }
+
+    // Group members by total score
+    const groups = {};
+    withPicks.forEach(m => {
+        const total = m.picks.map(p => find(p)).filter(Boolean).reduce((s, g) => s + g.score, 0);
+        if (!groups[total]) groups[total] = [];
+        groups[total].push(m.name);
+    });
+
+    const scores   = Object.keys(groups).map(Number).sort((a, b) => a - b);
+    const maxCount = Math.max(...scores.map(s => groups[s].length));
+    const maxNames = Math.max(...scores.map(s => groups[s].length));
+
+    const BAR_W    = 64;
+    const GAP      = 10;
+    const MAX_BAR_H = 120;
+    const PAD_L    = 20, PAD_R = 20, PAD_T = 16, PAD_B = 24 + maxNames * 15;
+    const W        = PAD_L + scores.length * (BAR_W + GAP) - GAP + PAD_R;
+    const H        = PAD_T + MAX_BAR_H + PAD_B;
+    const baseY    = PAD_T + MAX_BAR_H;
+    const textCol  = dark ? '#c0d0c0' : '#444';
+    const subCol   = dark ? '#778877' : '#777';
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="display:block;font-family:Georgia,serif;min-width:${W}px">`;
+
+    scores.forEach((score, i) => {
+        const names  = groups[score];
+        const count  = names.length;
+        const barH   = Math.max((count / maxCount) * MAX_BAR_H, 8);
+        const x      = PAD_L + i * (BAR_W + GAP);
+        const y      = baseY - barH;
+        const col    = heatColor(score);
+
+        // Bar
+        svg += `<rect x="${x}" y="${y}" width="${BAR_W}" height="${barH}" rx="5" fill="${col}" opacity="0.88"/>`;
+
+        // Count inside bar (if tall enough)
+        if (barH >= 22) {
+            svg += `<text x="${x + BAR_W / 2}" y="${y + barH / 2 + 5}" text-anchor="middle"
+                font-size="15" font-weight="bold" fill="white">${count}</text>`;
+        }
+
+        // Score label below bar
+        svg += `<text x="${x + BAR_W / 2}" y="${baseY + 16}" text-anchor="middle"
+            font-size="13" font-weight="bold" fill="${col}">${esc(fmt(score))}</text>`;
+
+        // Member names below score label
+        names.forEach((name, ni) => {
+            svg += `<text x="${x + BAR_W / 2}" y="${baseY + 30 + ni * 15}" text-anchor="middle"
+                font-size="10.5" fill="${subCol}">${esc(name)}</text>`;
+        });
+    });
+
+    svg += '</svg>';
+    container.innerHTML = svg;
 }
 
 // ── Popularity chart ─────────────────────────────────────────
@@ -980,6 +1052,7 @@ function toggleDark() {
     updateDarkBtn();
     // Re-render SVG-based charts so they pick up new colors
     renderMatrix();
+    renderHistogram();
     renderBubble();
 }
 
