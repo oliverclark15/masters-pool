@@ -486,7 +486,13 @@
     <div class="card">
         <div class="card-header">
             Masters Leaderboard
-            <span class="round-badge" id="roundBadge">Live</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button id="lbFilterBtn" onclick="toggleLbFilter()"
+                    style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:20px;padding:3px 12px;font-size:0.75em;cursor:pointer;letter-spacing:0.5px;transition:background 0.2s;">
+                    Pool picks only
+                </button>
+                <span class="round-badge" id="roundBadge">Live</span>
+            </div>
         </div>
         <div id="leaderboard"><div class="empty-state">Fetching scores…</div></div>
     </div>
@@ -557,6 +563,7 @@ const POOL_MEMBERS = [
 let golfersData    = {};
 let tournamentName = "Masters Tournament";
 let roundStatus    = "";
+let lbFilterPicks  = false;
 const REFRESH_MS   = 90_000;
 
 // ── Fetch ────────────────────────────────────────────────────
@@ -690,10 +697,12 @@ function renderLeaderboard() {
         pickSet.has(name.toLowerCase()) ||
         pickSet.has(name.split(' ').pop().toLowerCase());
 
-    const active    = all.filter(g => g.status === 'active')
-                         .sort((a, b) => a.score !== b.score ? a.score - b.score : a.sortOrder - b.sortOrder);
-    const nonActive = all.filter(g => g.status !== 'active')
-                         .sort((a, b) => a.score - b.score);
+    const activeAll  = all.filter(g => g.status === 'active')
+                          .sort((a, b) => a.score !== b.score ? a.score - b.score : a.sortOrder - b.sortOrder);
+    const nonActiveAll = all.filter(g => g.status !== 'active')
+                            .sort((a, b) => a.score - b.score);
+    const active    = lbFilterPicks ? activeAll.filter(g => isPoolPick(g.name))    : activeAll;
+    const nonActive = lbFilterPicks ? nonActiveAll.filter(g => isPoolPick(g.name)) : nonActiveAll;
 
     // Build reverse map: golfer name → list of member names who picked them
     const pickerMap = {};
@@ -1268,6 +1277,15 @@ document.getElementById('leaderboard').addEventListener('mousemove', e => {
 document.getElementById('leaderboard').addEventListener('mouseleave', () => {
     tooltip.style.display = 'none';
 });
+
+// ── Leaderboard filter toggle ─────────────────────────────────
+function toggleLbFilter() {
+    lbFilterPicks = !lbFilterPicks;
+    const btn = document.getElementById('lbFilterBtn');
+    btn.style.background = lbFilterPicks ? 'rgba(201,168,76,0.35)' : 'rgba(255,255,255,0.12)';
+    btn.style.borderColor = lbFilterPicks ? '#c9a84c' : 'rgba(255,255,255,0.25)';
+    renderLeaderboard();
+}
 
 // ── Tabs ─────────────────────────────────────────────────────
 function switchTab(name) {
