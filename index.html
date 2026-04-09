@@ -787,28 +787,23 @@ function renderPopularity() {
 // ── Bubble chart ──────────────────────────────────────────────
 function renderBubble() {
     const container = document.getElementById('bubbleChart');
-    const withPicks = POOL_MEMBERS.filter(m => m.picks.length > 0);
 
-    if (withPicks.length < 2) {
-        container.innerHTML = '<div class="empty-state">Waiting for more picks to be submitted.</div>';
-        return;
-    }
-
-    // Compute totals and holes remaining
-    const members = withPicks.map(m => {
-        const results     = m.picks.map(p => find(p)).filter(Boolean);
-        const total       = results.reduce((s, g) => s + g.score, 0);
-        const holesPlayed = results.reduce((s, g) => s + (parseInt(g.thru) || 0), 0);
-        const maxHoles    = results.length * 72; // 4 rounds × 18 holes
-        const holesLeft   = maxHoles - holesPlayed;
-        return { name: m.name, total, holesLeft, results };
+    // Include ALL members — no picks = gray bubble at 0
+    const members = POOL_MEMBERS.map(m => {
+        const hasPicks = m.picks.length > 0;
+        const results  = m.picks.map(p => find(p)).filter(Boolean);
+        const total    = results.reduce((s, g) => s + g.score, 0);
+        const holesLeft = hasPicks
+            ? results.reduce((s, g) => s + holesRemaining(g), 0)
+            : null; // null = no picks yet
+        return { name: m.name, total, holesLeft, hasPicks };
     });
 
     members.sort((a, b) => a.total - b.total);
 
     const PAD_L = 30, PAD_R = 30, PAD_T = 60, PAD_B = 40;
-    const W = Math.max(600, members.length * 80);
-    const H = 260;
+    const W = Math.max(700, members.length * 52);
+    const H = 300;
     const PLOT_W = W - PAD_L - PAD_R;
     const PLOT_H = H - PAD_T - PAD_B;
 
@@ -817,15 +812,17 @@ function renderBubble() {
     const maxScore = Math.max(...scores) + 1;
     const range    = maxScore - minScore || 1;
 
-    const maxHolesLeft = Math.max(...members.map(m => m.holesLeft), 1);
+    const pickedHoles  = members.filter(m => m.hasPicks).map(m => m.holesLeft);
+    const maxHolesLeft = Math.max(...pickedHoles, 1);
 
     const xPos  = s  => PAD_L + ((s - minScore) / range) * PLOT_W;
-    const rSize = hl => 14 + (hl / maxHolesLeft) * 20;
+    const rSize = m  => m.hasPicks ? 14 + (m.holesLeft / maxHolesLeft) * 18 : 8;
 
-    // Spread bubbles vertically to avoid overlap (simple even distribution)
+    // Spread bubbles vertically — alternate above/below axis to reduce overlap
     const yPositions = members.map((_, i) => {
-        const bands = members.length;
-        return PAD_T + PLOT_H * 0.2 + (PLOT_H * 0.6 * i / Math.max(bands - 1, 1));
+        const mid    = PAD_T + PLOT_H * 0.5;
+        const spread = PLOT_H * 0.38;
+        return mid + (i % 2 === 0 ? -spread : spread) * (0.4 + 0.6 * (i / members.length));
     });
 
     const dark     = document.body.classList.contains('dark');
@@ -853,21 +850,26 @@ function renderBubble() {
     members.forEach((m, i) => {
         const x   = xPos(m.total);
         const y   = yPositions[i];
-        const r   = rSize(m.holesLeft);
-        const col = heatColor(m.total);
+        const r   = rSize(m);
+        const col = m.hasPicks ? heatColor(m.total) : (dark ? '#2a3a2a' : '#ccc');
+        const lineY2 = y < axisY ? y + r : y - r;
 
-        // Line from bubble to axis
-        svg += `<line x1="${x}" y1="${y + r}" x2="${x}" y2="${axisY}" stroke="${col}" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>`;
+        // Dashed line to axis
+        svg += `<line x1="${x}" y1="${lineY2}" x2="${x}" y2="${axisY}" stroke="${col}" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>`;
 
         // Bubble
-        svg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}" opacity="0.85"/>`;
+        svg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}" opacity="${m.hasPicks ? 0.9 : 0.5}"/>`;
 
-        // Score label inside bubble
-        const scoreLabel = fmt(m.total);
-        svg += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" fill="white" font-weight="bold">${esc(scoreLabel)}</text>`;
+        // Label inside bubble (only if has picks)
+        if (m.hasPicks) {
+            svg += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" fill="white" font-weight="bold">${esc(fmt(m.total))}</text>`;
+        }
 
-        // Name above bubble
-        svg += `<text x="${x}" y="${y - r - 5}" text-anchor="middle" font-size="12" fill="${nameCol}">${esc(m.name)}</text>`;
+        // Name — above or below depending on y position
+        const nameY = y < axisY ? y - r - 5 : y + r + 13;
+        const nameSize = m.hasPicks ? 12 : 10;
+        const nameOpacity = m.hasPicks ? 1 : 0.5;
+        svg += `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="${nameSize}" fill="${nameCol}" opacity="${nameOpacity}">${esc(m.name)}</text>`;
     });
 
     // Legend note
