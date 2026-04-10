@@ -559,6 +559,7 @@
                 Clear
             </button>
         </div>
+        <div id="roundFilterBar" style="padding:8px 20px 0;display:flex;gap:6px;flex-wrap:wrap;"></div>
         <div id="poolStandings"><div class="empty-state">Fetching scores…</div></div>
     </div>
 
@@ -651,6 +652,7 @@ let golfersData    = {};
 let tournamentName = "Masters Tournament";
 let roundStatus    = "";
 let lbFilterPicks  = true;
+let poolRoundFilter = 'total'; // 'total' | 1 | 2 | 3 | 4
 const REFRESH_MS   = 90_000;
 
 // ── Fetch ────────────────────────────────────────────────────
@@ -734,23 +736,50 @@ function renderPool() {
         const results   = m.picks.map(p => ({ name: p, data: find(p) }));
         const total     = results.reduce((s, g) => s + (g.data?.score ?? 0), 0);
         const holesLeft = results.reduce((s, g) => s + holesRemaining(g.data), 0);
-        return { ...m, results, total, holesLeft };
-    }).sort((a, b) => a.total - b.total);
+        // Per-round team totals
+        const roundTotals = {};
+        [1,2,3,4].forEach(r => {
+            const vals = results.filter(g => g.data?.rounds?.[r] !== undefined);
+            if (vals.length) roundTotals[r] = vals.reduce((s, g) => s + g.data.rounds[r], 0);
+        });
+        return { ...m, results, total, holesLeft, roundTotals };
+    });
 
+    // Determine available rounds for filter bar
+    const availRounds = [1,2,3,4].filter(r => standings.some(m => m.roundTotals[r] !== undefined));
+
+    // Render filter bar
+    const filterBar = document.getElementById('roundFilterBar');
+    if (filterBar) {
+        const btns = ['total', ...availRounds].map(r => {
+            const active = poolRoundFilter === r;
+            const label  = r === 'total' ? 'Total' : `R${r}`;
+            return `<button onclick="setPoolRound(${r === 'total' ? "'total'" : r})"
+                style="padding:3px 11px;border-radius:14px;border:1px solid ${active ? '#1a5c38' : '#ccc'};
+                background:${active ? '#1a5c38' : 'transparent'};color:${active ? 'white' : 'inherit'};
+                font-size:0.78em;cursor:pointer;font-family:sans-serif;transition:all 0.15s;">${label}</button>`;
+        }).join('');
+        filterBar.innerHTML = btns;
+    }
+
+    // Sort by selected round (or total)
+    const scoreFor = m => poolRoundFilter === 'total' ? m.total : (m.roundTotals[poolRoundFilter] ?? 999);
+    standings.sort((a, b) => scoreFor(a) - scoreFor(b));
+
+    const colLabel = poolRoundFilter === 'total' ? 'Total' : `R${poolRoundFilter}`;
     let html = `<table><thead><tr>
-        <th>Rank</th><th>Member</th><th>Picks</th><th>Total</th><th title="Holes remaining across all 4 golfers (max 288)">Holes Left</th>
+        <th>Rank</th><th>Member</th><th>Picks</th><th>${colLabel}</th><th title="Holes remaining across all 4 golfers (max 288)">Holes Left</th>
     </tr></thead><tbody>`;
 
     // Build rank labels accounting for ties
     const ranks = standings.map((m, i) => {
-        const rank = i + 1;
-        const tied = standings.filter(n => n.total === m.total).length > 1;
+        const myScore = scoreFor(m);
+        const tied = standings.filter(n => scoreFor(n) === myScore).length > 1;
         if (i === 0 && !tied) return '🥇';
         if (i === 1 && !tied) return '🥈';
         if (i === 2 && !tied) return '🥉';
-        // find the true rank position (first index with this score + 1)
-        const pos = standings.findIndex(n => n.total === m.total) + 1;
-        return tied ? `T-${pos}` : `${rank}`;
+        const pos = standings.findIndex(n => scoreFor(n) === myScore) + 1;
+        return tied ? `T-${pos}` : `${i + 1}`;
     });
 
     // Determine how many rounds have any data
@@ -806,7 +835,7 @@ function renderPool() {
             <td class="rank-cell">${medal}</td>
             <td><span class="member-toggle" data-uid="${uid}"><strong>${esc(m.name)}</strong><span class="chevron">▶</span></span></td>
             <td class="picks-cell">${tags}</td>
-            <td class="total-score ${cls(m.total)} score-animate" data-score="${m.total}">${fmt(m.total)}</td>
+            <td class="total-score ${cls(scoreFor(m))} score-animate" data-score="${scoreFor(m)}">${scoreFor(m) === 999 ? '—' : fmt(scoreFor(m))}</td>
             <td class="holes-left-cell">${holesLeftDisplay(m.holesLeft)}</td>
         </tr>
         <tr id="${uid}" class="expand-row" style="display:none;">
@@ -1599,6 +1628,11 @@ function resetHighlights() {
 }
 
 // ── Leaderboard filter toggle ─────────────────────────────────
+function setPoolRound(r) {
+    poolRoundFilter = r;
+    renderPool();
+}
+
 function toggleLbFilter() {
     lbFilterPicks = !lbFilterPicks;
     const btn = document.getElementById('lbFilterBtn');
