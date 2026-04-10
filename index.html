@@ -525,6 +525,8 @@
             <button class="tab-btn"        data-tab="histogram"  onclick="switchTab('histogram')">Distribution</button>
             <button class="tab-btn"        data-tab="bubble"     onclick="switchTab('bubble')">Bubble</button>
             <button class="tab-btn"        data-tab="rivalries"  onclick="switchTab('rivalries')">Rivalries</button>
+            <button class="tab-btn"        data-tab="network"    onclick="switchTab('network')">Network</button>
+            <button class="tab-btn"        data-tab="positions"  onclick="switchTab('positions')">Positions</button>
         </div>
         <div id="tab-matrix" class="tab-panel active">
             <div id="picksMatrix" style="overflow-x:auto; padding: 0 0 8px;"></div>
@@ -540,6 +542,12 @@
         </div>
         <div id="tab-rivalries" class="tab-panel">
             <div id="rivalriesPanel" style="padding: 16px 20px;"></div>
+        </div>
+        <div id="tab-network" class="tab-panel">
+            <div id="networkChart" style="overflow-x:auto; padding: 16px 8px;"></div>
+        </div>
+        <div id="tab-positions" class="tab-panel">
+            <div id="positionGrid" style="overflow-x:auto;"></div>
         </div>
     </div>
 
@@ -789,7 +797,141 @@ function renderLeaderboard() {
     document.getElementById('leaderboard').innerHTML = html + '</tbody></table>';
 }
 
-function renderAll() { renderPool(); renderLeaderboard(); renderRivalries(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); }
+function renderAll() { renderPool(); renderLeaderboard(); renderRivalries(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); renderNetwork(); renderPositionGrid(); }
+
+// ── Pick Network graph ────────────────────────────────────────
+function renderNetwork() {
+    const container = document.getElementById('networkChart');
+    const members   = POOL_MEMBERS.filter(m => m.picks.length > 0);
+    if (members.length < 2) { container.innerHTML = '<div class="empty-state">Need more picks.</div>'; return; }
+
+    const dark   = document.body.classList.contains('dark');
+    const N      = members.length;
+    const W = 900, H = 720, CX = W / 2, CY = H / 2;
+    const R = 240, NODE_R = 20;
+    const labelR = R + NODE_R + 16;
+
+    // Edge colours by shared pick count
+    const edgeCols  = ['','#cccccc','#c9a84c','#e07b39','#c0392b'];
+    const edgeColsD = ['','#2a3a2a','#7a6030','#8a4020','#6a1510'];
+
+    // Positions on circle
+    const pos = members.map((_, i) => {
+        const a = (i / N) * 2 * Math.PI - Math.PI / 2;
+        return { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a), a };
+    });
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"
+        viewBox="0 0 ${W} ${H}" style="font-family:Georgia,serif;display:block;min-width:${W}px">`;
+
+    // Edges
+    for (let i = 0; i < N; i++) {
+        for (let j = i + 1; j < N; j++) {
+            const shared = members[i].picks.filter(p =>
+                members[j].picks.some(q => q.toLowerCase() === p.toLowerCase())
+            ).length;
+            if (!shared) continue;
+            const col = dark ? edgeColsD[Math.min(shared,4)] : edgeCols[Math.min(shared,4)];
+            svg += `<line x1="${pos[i].x}" y1="${pos[i].y}" x2="${pos[j].x}" y2="${pos[j].y}"
+                stroke="${col}" stroke-width="${shared * 1.8}" opacity="0.8"/>`;
+        }
+    }
+
+    // Nodes + labels
+    const bgCol  = dark ? '#1a2118' : 'white';
+    const txtCol = dark ? '#c0d0c0' : '#2c2c2c';
+    members.forEach((m, i) => {
+        const { x, y, a } = pos[i];
+        const total = m.picks.map(p => find(p)).filter(Boolean).reduce((s, g) => s + g.score, 0);
+        const col   = heatColor(total);
+        const lx    = CX + labelR * Math.cos(a);
+        const ly    = CY + labelR * Math.sin(a);
+        const anchor = Math.cos(a) < -0.15 ? 'end' : Math.cos(a) > 0.15 ? 'start' : 'middle';
+
+        svg += `<circle cx="${x}" cy="${y}" r="${NODE_R}" fill="${col}" stroke="${bgCol}" stroke-width="2.5"/>`;
+        svg += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="10" fill="white" font-weight="bold">${esc(fmt(total))}</text>`;
+        svg += `<text x="${lx}" y="${ly + 4}" text-anchor="${anchor}" font-size="11.5" fill="${txtCol}">${esc(m.name)}</text>`;
+    });
+
+    svg += '</svg>';
+
+    const legend = `<div style="display:flex;flex-wrap:wrap;gap:14px;padding:8px 16px 14px;font-family:sans-serif;font-size:0.78em;color:${dark?'#778877':'#555'}">
+        <span style="font-weight:bold;align-self:center;">Shared picks:</span>
+        ${[1,2,3,4].map(n => `<span style="display:flex;align-items:center;gap:6px;">
+            <span style="width:28px;height:${n*1.8}px;background:${edgeCols[n]};display:inline-block;border-radius:2px;"></span>${n}
+        </span>`).join('')}
+    </div>`;
+
+    container.innerHTML = svg + legend;
+}
+
+// ── Leaderboard position grid ─────────────────────────────────
+function renderPositionGrid() {
+    const container = document.getElementById('positionGrid');
+    const dark = document.body.classList.contains('dark');
+
+    const members = POOL_MEMBERS.filter(m => m.picks.length > 0).map(m => {
+        const results = m.picks.map(p => ({ name: p, data: find(p) }));
+        const total   = results.reduce((s, g) => s + (g.data?.score ?? 0), 0);
+        return { ...m, results, total };
+    }).sort((a, b) => a.total - b.total);
+
+    if (!members.length) { container.innerHTML = '<div class="empty-state">No picks yet.</div>'; return; }
+
+    const posColor = d => {
+        if (!d || d.status === 'cut' || d.status === 'wd') return '#aaa';
+        const p = parseInt(d.sortOrder) || 999;
+        if (p <= 5)  return '#0d4a28';
+        if (p <= 10) return '#1a5c38';
+        if (p <= 25) return '#52b788';
+        if (p <= 50) return '#c9a84c';
+        if (p <= 70) return '#e07b39';
+        return '#c0392b';
+    };
+
+    const th = `background:${dark?'#162014':'#f5efe0'};color:${dark?'#8ab89a':'#5a4020'};padding:9px 10px;font-size:0.72em;text-transform:uppercase;letter-spacing:0.8px;border-bottom:2px solid ${dark?'#2a3a2a':'#ddd'};`;
+    const td = `border-bottom:1px solid ${dark?'#222e22':'#f0ebe0'};padding:7px 10px;`;
+
+    let html = `<table style="width:100%;border-collapse:collapse;">
+        <thead><tr>
+            <th style="${th}text-align:left;">Member</th>
+            <th colspan="4" style="${th}text-align:center;">Picks · Position</th>
+            <th style="${th}text-align:right;">Total</th>
+        </tr></thead><tbody>`;
+
+    members.forEach((m, idx) => {
+        const rowBg = idx === 0 ? (dark ? '#1c2c18' : '#fffbf0') : '';
+        const cells = m.results.map(g => {
+            const col = posColor(g.data);
+            const pos = g.data ? g.data.position : '–';
+            const sc  = g.data ? g.data.scoreDisplay : '?';
+            const cut = g.data && g.data.status !== 'active';
+            return `<td style="${td}text-align:center;">
+                <div style="display:inline-flex;flex-direction:column;align-items:center;background:${col};border-radius:7px;padding:5px 10px;min-width:56px;opacity:${cut?0.6:1}">
+                    <span style="font-size:0.78em;color:rgba(255,255,255,0.85);font-family:sans-serif;">${esc(last(g.name))}</span>
+                    <span style="font-weight:bold;font-size:1em;color:white;font-family:sans-serif;">${esc(pos)}</span>
+                    <span style="font-size:0.78em;color:rgba(255,255,255,0.9);font-family:sans-serif;">${esc(sc)}</span>
+                </div>
+            </td>`;
+        }).join('');
+
+        html += `<tr style="${rowBg ? `background:${rowBg};` : ''}">
+            <td style="${td}font-size:0.88em;"><strong>${esc(m.name)}</strong></td>
+            ${cells}
+            <td style="${td}text-align:right;font-weight:bold;font-size:1.1em;" class="${cls(m.total)}">${fmt(m.total)}</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;padding:12px 16px;font-family:sans-serif;font-size:0.78em;color:${dark?'#778877':'#666'};">
+        <span style="font-weight:bold;align-self:center;">Position:</span>
+        ${[['#0d4a28','T1–5'],['#1a5c38','T6–10'],['#52b788','11–25'],['#c9a84c','26–50'],['#e07b39','51–70'],['#c0392b','70+'],['#aaa','Cut/WD']].map(
+            ([c,l]) => `<span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:${c};display:inline-block;"></span>${l}</span>`
+        ).join('')}
+    </div>`;
+
+    container.innerHTML = html;
+}
 
 // ── Rivalries ─────────────────────────────────────────────────
 function renderRivalries() {
@@ -1361,6 +1503,8 @@ function toggleDark() {
     renderMatrix();
     renderHistogram();
     renderBubble();
+    renderNetwork();
+    renderPositionGrid();
 }
 
 function updateDarkBtn() {
