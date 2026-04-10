@@ -670,7 +670,7 @@ function renderPool() {
 
         html += `<tr class="${rowCls}">
             <td class="rank-cell">${medal}</td>
-            <td><strong>${esc(m.name)}</strong> ${m.paid ? '<span title="Paid">✅</span>' : '<span title="Not paid" style="opacity:0.4">💸</span>'}</td>
+            <td><strong>${esc(m.name)}</strong></td>
             <td class="picks-cell">${tags}</td>
             <td class="total-score ${cls(m.total)} score-animate" data-score="${m.total}">${fmt(m.total)}</td>
             <td class="holes-left-cell">${holesLeftDisplay(m.holesLeft)}</td>
