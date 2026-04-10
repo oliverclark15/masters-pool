@@ -526,6 +526,7 @@
             <button class="tab-btn"        data-tab="bubble"     onclick="switchTab('bubble')">Bubble</button>
             <button class="tab-btn"        data-tab="rivalries"  onclick="switchTab('rivalries')">Rivalries</button>
             <button class="tab-btn"        data-tab="positions"  onclick="switchTab('positions')">Positions</button>
+            <button class="tab-btn"        data-tab="uniqueness" onclick="switchTab('uniqueness')">Uniqueness</button>
         </div>
         <div id="tab-matrix" class="tab-panel active">
             <div id="picksMatrix" style="overflow-x:auto; padding: 0 0 8px;"></div>
@@ -544,6 +545,9 @@
         </div>
         <div id="tab-positions" class="tab-panel">
             <div id="positionGrid" style="overflow-x:auto;"></div>
+        </div>
+        <div id="tab-uniqueness" class="tab-panel">
+            <div id="uniquenessChart" style="padding: 16px 24px;"></div>
         </div>
     </div>
 
@@ -682,7 +686,10 @@ function renderPool() {
         const rowCls = i === 0 ? 'first-row' : i === 1 ? 'second-row' : '';
         const medal  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
 
-        const tags = m.results.map(g => {
+        const tags = [...m.results].sort((a, b) => {
+            const sd = (a.data?.score ?? 999) - (b.data?.score ?? 999);
+            return sd !== 0 ? sd : last(a.name).localeCompare(last(b.name));
+        }).map(g => {
             if (!g.data) return `<span class="tag cut-tag"><span class="tag-score">?</span> ${last(g.name)}</span>`;
             const cut = g.data.status !== 'active'
                 ? ` <span class="grayed">(${g.data.status.toUpperCase()})</span>` : '';
@@ -793,7 +800,70 @@ function renderLeaderboard() {
     document.getElementById('leaderboard').innerHTML = html + '</tbody></table>';
 }
 
-function renderAll() { renderPool(); renderLeaderboard(); renderRivalries(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); renderPositionGrid(); }
+// ── Team Uniqueness ───────────────────────────────────────────
+function renderUniqueness() {
+    const container  = document.getElementById('uniquenessChart');
+    const withPicks  = POOL_MEMBERS.filter(m => m.picks.length > 0);
+    if (withPicks.length === 0) {
+        container.innerHTML = '<div class="empty-state">No picks submitted yet.</div>';
+        return;
+    }
+
+    // Count how many members picked each golfer
+    const pickCount = {};
+    withPicks.forEach(m => m.picks.forEach(p => {
+        pickCount[p] = (pickCount[p] || 0) + 1;
+    }));
+
+    // Uniqueness score per member: average rarity of their 4 picks (0=everyone picked them, 100=only you)
+    const N = withPicks.length;
+    const scored = withPicks.map(m => {
+        const rarity = m.picks.map(p => (N - (pickCount[p] || 0)) / (N - 1)); // 0..1 per pick
+        const score  = Math.round((rarity.reduce((s, r) => s + r, 0) / rarity.length) * 100);
+        return { ...m, rarity, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const maxScore = scored[0].score || 1;
+    const dark = document.body.classList.contains('dark');
+    const mutedCol = dark ? '#778877' : '#888';
+
+    const rows = scored.map((m, i) => {
+        const barPct = (m.score / maxScore) * 100;
+        // Color: green for unique, muted for conformist
+        const hue  = Math.round(m.score * 1.2); // 0=red-ish, 100=green
+        const barCol = `hsl(${hue}, 55%, ${dark ? 38 : 42}%)`;
+
+        const pickTags = m.picks.map((p, pi) => {
+            const r   = m.rarity[pi];
+            const cnt = pickCount[p];
+            const tip = cnt === 1 ? 'only you!' : `${cnt} members`;
+            const col = r > 0.7 ? (dark ? '#6dbf7e' : '#27ae60')
+                      : r > 0.3 ? (dark ? '#c0b060' : '#b8860b')
+                      :           (dark ? '#c07070' : '#c0392b');
+            return `<span style="font-size:0.8em;padding:2px 7px;border-radius:10px;border:1px solid ${col};color:${col};white-space:nowrap;" title="${tip}">${last(p)}</span>`;
+        }).join(' ');
+
+        return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;font-family:sans-serif;">
+            <div style="width:130px;text-align:right;font-size:0.88em;font-weight:bold;color:${dark?'#c0d0c0':'#2c2c2c'};flex-shrink:0;">${i + 1}. ${esc(m.name)}</div>
+            <div style="flex:1;background:${dark?'#1a2118':'#f0f0f0'};border-radius:6px;height:26px;position:relative;overflow:hidden;">
+                <div style="width:${barPct}%;height:100%;background:${barCol};border-radius:6px;transition:width 0.4s;"></div>
+                <div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:0.78em;font-weight:bold;color:${dark?'#c0d0c0':'#444'};">${m.score}</div>
+            </div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;min-width:220px;">${pickTags}</div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div style="font-size:0.78em;color:${mutedCol};font-family:sans-serif;margin-bottom:16px;">
+            Score 0–100: how rare each team is vs. the field. Higher = more contrarian picks.
+            Pick colors: <span style="color:${dark?'#6dbf7e':'#27ae60'}">rare</span> ·
+            <span style="color:${dark?'#c0b060':'#b8860b'}">medium</span> ·
+            <span style="color:${dark?'#c07070':'#c0392b'}">popular</span>
+        </div>
+        ${rows}`;
+}
+
+function renderAll() { renderPool(); renderLeaderboard(); renderRivalries(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); renderPositionGrid(); renderUniqueness(); }
 
 // ── Leaderboard position grid ─────────────────────────────────
 function renderPositionGrid() {
@@ -954,10 +1024,10 @@ function renderRivalries() {
 function renderMatrix() {
     const container = document.getElementById('picksMatrix');
 
-    // All unique golfers picked, sorted A-Z
-    const golferSet = new Set();
-    POOL_MEMBERS.forEach(m => m.picks.forEach(p => golferSet.add(p)));
-    const golfers = [...golferSet].sort((a, b) => a.localeCompare(b));
+    // All unique golfers picked, sorted by popularity (most picked first), then A-Z
+    const golferCount = {};
+    POOL_MEMBERS.forEach(m => m.picks.forEach(p => { golferCount[p] = (golferCount[p] || 0) + 1; }));
+    const golfers = Object.keys(golferCount).sort((a, b) => golferCount[b] - golferCount[a] || a.localeCompare(b));
 
     const members  = POOL_MEMBERS.filter(m => m.picks.length > 0);
     const CELL     = 32;
