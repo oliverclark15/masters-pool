@@ -145,6 +145,64 @@
 
         .picks-cell { line-height: 2; }
 
+        .expand-row td {
+            padding: 0;
+            background: #f2f7f2;
+            border-bottom: 2px solid #c8e6c9;
+        }
+        body.dark .expand-row td {
+            background: #131f11;
+            border-bottom: 2px solid #2a3a2a;
+        }
+        .expand-inner {
+            padding: 10px 16px 14px 52px;
+            overflow-x: auto;
+        }
+        .expand-table {
+            border-collapse: collapse;
+            font-family: sans-serif;
+            font-size: 0.82em;
+            min-width: 360px;
+        }
+        .expand-table th {
+            color: #666;
+            font-weight: 600;
+            padding: 3px 12px 3px 0;
+            text-align: right;
+            white-space: nowrap;
+        }
+        body.dark .expand-table th { color: #778877; }
+        .expand-table td {
+            padding: 3px 12px 3px 0;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .expand-table td:first-child,
+        .expand-table th:first-child {
+            text-align: left;
+            padding-right: 20px;
+            font-style: italic;
+        }
+        .expand-table tr:last-child td {
+            font-weight: bold;
+            border-top: 1px solid #c8e6c9;
+            padding-top: 5px;
+        }
+        body.dark .expand-table tr:last-child td { border-top-color: #2a3a2a; }
+        .expand-table .no-score { color: #aaa; }
+        .member-toggle {
+            cursor: pointer;
+            user-select: none;
+        }
+        .member-toggle .chevron {
+            display: inline-block;
+            font-size: 0.7em;
+            margin-left: 5px;
+            transition: transform 0.2s;
+            color: #aaa;
+        }
+        .member-toggle.open .chevron { transform: rotate(90deg); }
+
         .tag {
             display: inline-flex;
             align-items: center;
@@ -695,14 +753,22 @@ function renderPool() {
         return tied ? `T-${pos}` : `${rank}`;
     });
 
+    // Determine how many rounds have any data
+    const roundNums = [1, 2, 3, 4].filter(r =>
+        standings.some(m => m.results.some(g => g.data?.rounds?.[r] !== undefined))
+    );
+
     standings.forEach((m, i) => {
         const rowCls = i === 0 ? 'first-row' : i === 1 ? 'second-row' : '';
         const medal  = ranks[i];
+        const uid    = `expand-${i}`;
 
-        const tags = [...m.results].sort((a, b) => {
+        const sortedResults = [...m.results].sort((a, b) => {
             const sd = (a.data?.score ?? 999) - (b.data?.score ?? 999);
             return sd !== 0 ? sd : last(a.name).localeCompare(last(b.name));
-        }).map(g => {
+        });
+
+        const tags = sortedResults.map(g => {
             if (!g.data) return `<span class="tag cut-tag"><span class="tag-score">?</span> ${last(g.name)}</span>`;
             const cut = g.data.status !== 'active'
                 ? ` <span class="grayed">(${g.data.status.toUpperCase()})</span>` : '';
@@ -714,12 +780,43 @@ function renderPool() {
             </span>`;
         }).join('');
 
+        // Round-by-round breakdown table
+        const rhdrs = roundNums.map(r => `<th>R${r}</th>`).join('');
+        const rbRows = sortedResults.map(g => {
+            const rCells = roundNums.map(r => {
+                const v = g.data?.rounds?.[r];
+                return v !== undefined
+                    ? `<td class="${cls(v)}">${fmt(v)}</td>`
+                    : `<td class="no-score">—</td>`;
+            }).join('');
+            const tot = g.data ? `<td class="${cls(g.data.score)}">${g.data.scoreDisplay}</td>` : `<td class="no-score">?</td>`;
+            return `<tr><td>${esc(g.name)}</td>${rCells}${tot}</tr>`;
+        }).join('');
+
+        const rTotals = roundNums.map(r => {
+            const s = m.results.reduce((acc, g) => {
+                const v = g.data?.rounds?.[r];
+                return v !== undefined ? acc + v : acc;
+            }, 0);
+            const hasSome = m.results.some(g => g.data?.rounds?.[r] !== undefined);
+            return hasSome ? `<td class="${cls(s)}">${fmt(s)}</td>` : `<td class="no-score">—</td>`;
+        }).join('');
+
         html += `<tr class="${rowCls}">
             <td class="rank-cell">${medal}</td>
-            <td><strong>${esc(m.name)}</strong></td>
+            <td><span class="member-toggle" data-uid="${uid}"><strong>${esc(m.name)}</strong><span class="chevron">▶</span></span></td>
             <td class="picks-cell">${tags}</td>
             <td class="total-score ${cls(m.total)} score-animate" data-score="${m.total}">${fmt(m.total)}</td>
             <td class="holes-left-cell">${holesLeftDisplay(m.holesLeft)}</td>
+        </tr>
+        <tr id="${uid}" class="expand-row" style="display:none;">
+            <td colspan="5"><div class="expand-inner">
+                <table class="expand-table">
+                    <thead><tr><th>Golfer</th>${rhdrs}<th>Total</th></tr></thead>
+                    <tbody>${rbRows}</tbody>
+                    <tfoot><tr><td>Team total</td>${rTotals}<td class="${cls(m.total)}">${fmt(m.total)}</td></tr></tfoot>
+                </table>
+            </div></td>
         </tr>`;
     });
 
@@ -1458,6 +1555,17 @@ document.getElementById('leaderboard').addEventListener('mouseleave', () => {
 const highlightedGolfers = new Set();
 
 document.getElementById('poolStandings').addEventListener('click', e => {
+    // Expand/collapse row
+    const toggle = e.target.closest('.member-toggle');
+    if (toggle) {
+        const uid = toggle.dataset.uid;
+        const row = document.getElementById(uid);
+        const open = row.style.display !== 'none';
+        row.style.display = open ? 'none' : 'table-row';
+        toggle.classList.toggle('open', !open);
+        return;
+    }
+    // Pick highlight
     const tag = e.target.closest('[data-golfer]');
     if (!tag) return;
     const name = tag.dataset.golfer;
