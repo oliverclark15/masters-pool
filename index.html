@@ -494,7 +494,13 @@
 <div class="container">
 
     <div class="card">
-        <div class="card-header">Pool Standings</div>
+        <div class="card-header">
+            Pool Standings
+            <button id="resetHighlight" onclick="resetHighlights()"
+                style="display:none;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:20px;padding:3px 12px;font-size:0.75em;cursor:pointer;letter-spacing:0.5px;">
+                Clear
+            </button>
+        </div>
         <div id="poolStandings"><div class="empty-state">Fetching scores…</div></div>
     </div>
 
@@ -1306,6 +1312,8 @@ document.getElementById('poolStandings').addEventListener('click', e => {
 });
 
 function updateRowHighlights() {
+    const btn = document.getElementById('resetHighlight');
+    if (btn) btn.style.display = highlightedGolfers.size > 0 ? 'inline-block' : 'none';
     document.querySelectorAll('#poolStandings tbody tr').forEach(row => {
         if (highlightedGolfers.size === 0) {
             row.classList.remove('row-match', 'row-dim');
@@ -1320,6 +1328,11 @@ function updateRowHighlights() {
             t.classList.toggle('tag-highlight', highlightedGolfers.has(t.dataset.golfer))
         );
     });
+}
+
+function resetHighlights() {
+    highlightedGolfers.clear();
+    updateRowHighlights();
 }
 
 // ── Leaderboard filter toggle ─────────────────────────────────
