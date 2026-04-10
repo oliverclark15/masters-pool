@@ -528,9 +528,50 @@
         body.dark .tab-btn.active { color: #6dba8a; border-bottom-color: #6dba8a; }
 
         @media (max-width: 600px) {
-            header h1 { font-size: 1.5em; }
+            header h1 { font-size: 1.4em; letter-spacing: 1px; }
+            header .subtitle { font-size: 0.65em; }
+
+            .container { padding: 12px 8px; gap: 12px; }
+
+            /* Hide less-critical columns on mobile */
             th.r3, td.r3, th.r4, td.r4 { display: none; }
-            .picks-cell .tag { font-size: 0.72em; }
+            th.holes-left-cell, td.holes-left-cell { display: none; }
+
+            /* Tighter table cells */
+            th { padding: 7px 8px; font-size: 0.7em; }
+            td { padding: 9px 8px; font-size: 0.82em; }
+
+            .rank-cell { width: 36px; font-size: 0.95em; }
+            .total-score { font-size: 1.1em; }
+
+            /* Pick tags: smaller, tighter */
+            .picks-cell { line-height: 1.8; }
+            .picks-cell .tag { font-size: 0.7em; padding: 2px 7px; margin: 1px 2px 1px 0; }
+
+            /* Leaderboard */
+            .lb-pos { width: 32px; }
+            .lb-round { width: 36px; padding-left: 4px; padding-right: 4px; }
+            .lb-thru { width: 48px; padding-left: 4px; padding-right: 4px; }
+            .lb-score { width: 44px; }
+
+            /* Expand row: remove big left indent */
+            .expand-inner { padding: 8px 8px 12px 8px; }
+            .expand-table { font-size: 0.78em; min-width: unset; width: 100%; }
+            .expand-table td, .expand-table th { padding: 3px 8px 3px 0; }
+
+            /* Round filter bar */
+            #roundFilterBar { padding: 6px 10px 0; gap: 4px; }
+            #roundFilterBar button { font-size: 0.74em; padding: 2px 9px; }
+
+            /* Tab bar: scroll horizontally instead of wrapping */
+            .tab-bar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .tab-btn { white-space: nowrap; font-size: 0.78em; padding: 8px 12px; flex-shrink: 0; }
+
+            /* Card header */
+            .card-header { font-size: 0.82em; padding: 11px 12px; letter-spacing: 0.8px; }
+
+            /* Dark toggle */
+            .dark-toggle { font-size: 0.72em; padding: 4px 9px; top: 10px; right: 10px; }
         }
     </style>
 </head>
@@ -775,7 +816,7 @@ function renderPool() {
 
     const colLabel = poolRoundFilter === 'total' ? 'Total' : `R${poolRoundFilter}`;
     let html = `<table><thead><tr>
-        <th>Rank</th><th>Member</th><th>Picks</th><th>${colLabel}</th><th title="Holes remaining across all 4 golfers (max 288)">Holes Left</th>
+        <th>Rank</th><th>Member</th><th>Picks</th><th>${colLabel}</th><th class="holes-left-cell" title="Holes remaining across all 4 golfers (max 288)">Holes Left</th>
     </tr></thead><tbody>`;
 
     // Build rank labels accounting for ties
