@@ -1323,20 +1323,34 @@ let firstLoad = true;
 function animateScores() {
     if (!firstLoad) return;
     firstLoad = false;
-    document.querySelectorAll('.total-score[data-score]').forEach(el => {
-        const target   = parseInt(el.dataset.score) || 0;
-        if (target === 0) return; // E — nothing to count
-        const duration = 700;
-        const start    = Date.now();
-        function tick() {
-            const p       = Math.min((Date.now() - start) / duration, 1);
-            const eased   = 1 - Math.pow(1 - p, 3);
-            const current = Math.round(target * eased);
-            el.textContent = fmt(current);
-            if (p < 1) requestAnimationFrame(tick);
-            else el.textContent = fmt(target);
-        }
-        requestAnimationFrame(tick);
+    document.querySelectorAll('.total-score[data-score]').forEach((el, idx) => {
+        const target = parseInt(el.dataset.score) || 0;
+        if (target === 0) return;
+        const delay      = idx * 100;          // stagger each row
+        const duration   = 1500;
+        const overshoot  = target * 1.35;      // blast 35% past target
+        setTimeout(() => {
+            const start = Date.now();
+            function tick() {
+                const p = Math.min((Date.now() - start) / duration, 1);
+                let current;
+                if (p < 0.65) {
+                    // Rush phase: accelerate toward overshoot
+                    const q = p / 0.65;
+                    const eased = 1 - Math.pow(1 - q, 2.5);
+                    current = Math.round(overshoot * eased);
+                } else {
+                    // Spring-back phase: elastic snap to target
+                    const q = (p - 0.65) / 0.35;
+                    const spring = 1 - Math.pow(2, -9 * q) * Math.cos(q * Math.PI * 2.2);
+                    current = Math.round(overshoot + (target - overshoot) * spring);
+                }
+                el.textContent = fmt(current);
+                if (p < 1) requestAnimationFrame(tick);
+                else el.textContent = fmt(target);
+            }
+            requestAnimationFrame(tick);
+        }, delay);
     });
 }
 
