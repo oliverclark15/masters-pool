@@ -525,7 +525,6 @@
             <button class="tab-btn"        data-tab="histogram"  onclick="switchTab('histogram')">Distribution</button>
             <button class="tab-btn"        data-tab="bubble"     onclick="switchTab('bubble')">Bubble</button>
             <button class="tab-btn"        data-tab="rivalries"  onclick="switchTab('rivalries')">Rivalries</button>
-            <button class="tab-btn"        data-tab="network"    onclick="switchTab('network')">Network</button>
             <button class="tab-btn"        data-tab="positions"  onclick="switchTab('positions')">Positions</button>
         </div>
         <div id="tab-matrix" class="tab-panel active">
@@ -542,9 +541,6 @@
         </div>
         <div id="tab-rivalries" class="tab-panel">
             <div id="rivalriesPanel" style="padding: 16px 20px;"></div>
-        </div>
-        <div id="tab-network" class="tab-panel">
-            <div id="networkChart" style="overflow-x:auto; padding: 16px 8px;"></div>
         </div>
         <div id="tab-positions" class="tab-panel">
             <div id="positionGrid" style="overflow-x:auto;"></div>
@@ -797,73 +793,7 @@ function renderLeaderboard() {
     document.getElementById('leaderboard').innerHTML = html + '</tbody></table>';
 }
 
-function renderAll() { renderPool(); renderLeaderboard(); renderRivalries(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); renderNetwork(); renderPositionGrid(); }
-
-// ── Pick Network graph ────────────────────────────────────────
-function renderNetwork() {
-    const container = document.getElementById('networkChart');
-    const members   = POOL_MEMBERS.filter(m => m.picks.length > 0);
-    if (members.length < 2) { container.innerHTML = '<div class="empty-state">Need more picks.</div>'; return; }
-
-    const dark   = document.body.classList.contains('dark');
-    const N      = members.length;
-    const W = 900, H = 720, CX = W / 2, CY = H / 2;
-    const R = 240, NODE_R = 20;
-    const labelR = R + NODE_R + 16;
-
-    // Edge colours by shared pick count
-    const edgeCols  = ['','#cccccc','#c9a84c','#e07b39','#c0392b'];
-    const edgeColsD = ['','#2a3a2a','#7a6030','#8a4020','#6a1510'];
-
-    // Positions on circle
-    const pos = members.map((_, i) => {
-        const a = (i / N) * 2 * Math.PI - Math.PI / 2;
-        return { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a), a };
-    });
-
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"
-        viewBox="0 0 ${W} ${H}" style="font-family:Georgia,serif;display:block;min-width:${W}px">`;
-
-    // Edges
-    for (let i = 0; i < N; i++) {
-        for (let j = i + 1; j < N; j++) {
-            const shared = members[i].picks.filter(p =>
-                members[j].picks.some(q => q.toLowerCase() === p.toLowerCase())
-            ).length;
-            if (!shared) continue;
-            const col = dark ? edgeColsD[Math.min(shared,4)] : edgeCols[Math.min(shared,4)];
-            svg += `<line x1="${pos[i].x}" y1="${pos[i].y}" x2="${pos[j].x}" y2="${pos[j].y}"
-                stroke="${col}" stroke-width="${shared * 1.8}" opacity="0.8"/>`;
-        }
-    }
-
-    // Nodes + labels
-    const bgCol  = dark ? '#1a2118' : 'white';
-    const txtCol = dark ? '#c0d0c0' : '#2c2c2c';
-    members.forEach((m, i) => {
-        const { x, y, a } = pos[i];
-        const total = m.picks.map(p => find(p)).filter(Boolean).reduce((s, g) => s + g.score, 0);
-        const col   = heatColor(total);
-        const lx    = CX + labelR * Math.cos(a);
-        const ly    = CY + labelR * Math.sin(a);
-        const anchor = Math.cos(a) < -0.15 ? 'end' : Math.cos(a) > 0.15 ? 'start' : 'middle';
-
-        svg += `<circle cx="${x}" cy="${y}" r="${NODE_R}" fill="${col}" stroke="${bgCol}" stroke-width="2.5"/>`;
-        svg += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="10" fill="white" font-weight="bold">${esc(fmt(total))}</text>`;
-        svg += `<text x="${lx}" y="${ly + 4}" text-anchor="${anchor}" font-size="11.5" fill="${txtCol}">${esc(m.name)}</text>`;
-    });
-
-    svg += '</svg>';
-
-    const legend = `<div style="display:flex;flex-wrap:wrap;gap:14px;padding:8px 16px 14px;font-family:sans-serif;font-size:0.78em;color:${dark?'#778877':'#555'}">
-        <span style="font-weight:bold;align-self:center;">Shared picks:</span>
-        ${[1,2,3,4].map(n => `<span style="display:flex;align-items:center;gap:6px;">
-            <span style="width:28px;height:${n*1.8}px;background:${edgeCols[n]};display:inline-block;border-radius:2px;"></span>${n}
-        </span>`).join('')}
-    </div>`;
-
-    container.innerHTML = svg + legend;
-}
+function renderAll() { renderPool(); renderLeaderboard(); renderRivalries(); renderMatrix(); renderPopularity(); renderHistogram(); renderBubble(); renderPositionGrid(); }
 
 // ── Leaderboard position grid ─────────────────────────────────
 function renderPositionGrid() {
@@ -1503,7 +1433,6 @@ function toggleDark() {
     renderMatrix();
     renderHistogram();
     renderBubble();
-    renderNetwork();
     renderPositionGrid();
 }
 
