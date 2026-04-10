@@ -419,6 +419,18 @@
         body.dark .rivalry-diff-pick { color: #8ab89a; }
         body.dark .rivalry-note { color: #556655; }
 
+        /* Pick highlight */
+        .tag.tag-highlight {
+            background: #fffbe6;
+            border-color: #c9a84c;
+            box-shadow: 0 0 0 2px #c9a84c66;
+        }
+        body.dark .tag.tag-highlight {
+            background: #2a2800;
+            border-color: #c9a84c;
+            box-shadow: 0 0 0 2px #c9a84c44;
+        }
+
         /* Tabs */
         .tab-bar {
             display: flex;
@@ -662,6 +674,7 @@ function renderPool() {
             const cut = g.data.status !== 'active'
                 ? ` <span class="grayed">(${g.data.status.toUpperCase()})</span>` : '';
             return `<span class="${g.data.status !== 'active' ? 'tag cut-tag' : 'tag'}"
+                data-golfer="${esc(g.name)}" style="cursor:pointer"
                 title="${g.name} · Pos: ${g.data.position} · Thru: ${g.data.thru || '--'}">
                 <span class="tag-score ${cls(g.data.score)}">${g.data.scoreDisplay}</span>
                 ${last(g.name)}${cut}
@@ -1275,6 +1288,23 @@ document.getElementById('leaderboard').addEventListener('mousemove', e => {
 
 document.getElementById('leaderboard').addEventListener('mouseleave', () => {
     tooltip.style.display = 'none';
+});
+
+// ── Pick highlight on click ───────────────────────────────────
+let highlightedGolfer = null;
+
+document.getElementById('poolStandings').addEventListener('click', e => {
+    const tag = e.target.closest('[data-golfer]');
+    const name = tag?.dataset.golfer;
+    if (!name || name === highlightedGolfer) {
+        highlightedGolfer = null;
+        document.querySelectorAll('#poolStandings [data-golfer]').forEach(t => t.classList.remove('tag-highlight'));
+    } else {
+        highlightedGolfer = name;
+        document.querySelectorAll('#poolStandings [data-golfer]').forEach(t =>
+            t.classList.toggle('tag-highlight', t.dataset.golfer === name)
+        );
+    }
 });
 
 // ── Leaderboard filter toggle ─────────────────────────────────
