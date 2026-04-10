@@ -430,6 +430,9 @@
             border-color: #c9a84c;
             box-shadow: 0 0 0 2px #c9a84c44;
         }
+        #poolStandings tr.row-dim td { opacity: 0.25; transition: opacity 0.2s; }
+        #poolStandings tr.row-match td { background: #fffde7 !important; }
+        body.dark #poolStandings tr.row-match td { background: #26280e !important; }
 
         /* Tabs */
         .tab-bar {
@@ -1299,10 +1302,25 @@ document.getElementById('poolStandings').addEventListener('click', e => {
     const name = tag.dataset.golfer;
     if (highlightedGolfers.has(name)) highlightedGolfers.delete(name);
     else highlightedGolfers.add(name);
-    document.querySelectorAll('#poolStandings [data-golfer]').forEach(t =>
-        t.classList.toggle('tag-highlight', highlightedGolfers.has(t.dataset.golfer))
-    );
+    updateRowHighlights();
 });
+
+function updateRowHighlights() {
+    document.querySelectorAll('#poolStandings tbody tr').forEach(row => {
+        if (highlightedGolfers.size === 0) {
+            row.classList.remove('row-match', 'row-dim');
+            row.querySelectorAll('[data-golfer]').forEach(t => t.classList.remove('tag-highlight'));
+            return;
+        }
+        const rowGolfers = new Set([...row.querySelectorAll('[data-golfer]')].map(t => t.dataset.golfer));
+        const matches = [...highlightedGolfers].every(g => rowGolfers.has(g));
+        row.classList.toggle('row-match', matches);
+        row.classList.toggle('row-dim', !matches);
+        row.querySelectorAll('[data-golfer]').forEach(t =>
+            t.classList.toggle('tag-highlight', highlightedGolfers.has(t.dataset.golfer))
+        );
+    });
+}
 
 // ── Leaderboard filter toggle ─────────────────────────────────
 function toggleLbFilter() {
