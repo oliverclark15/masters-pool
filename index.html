@@ -509,7 +509,7 @@
             Masters Leaderboard
             <div style="display:flex;align-items:center;gap:8px;">
                 <button id="lbFilterBtn" onclick="toggleLbFilter()"
-                    style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:20px;padding:3px 12px;font-size:0.75em;cursor:pointer;letter-spacing:0.5px;transition:background 0.2s;">
+                    style="background:rgba(201,168,76,0.35);border:1px solid #c9a84c;color:white;border-radius:20px;padding:3px 12px;font-size:0.75em;cursor:pointer;letter-spacing:0.5px;transition:background 0.2s;">
                     Pool picks only
                 </button>
                 <span class="round-badge" id="roundBadge">Live</span>
@@ -591,7 +591,7 @@ const POOL_MEMBERS = [
 let golfersData    = {};
 let tournamentName = "Masters Tournament";
 let roundStatus    = "";
-let lbFilterPicks  = false;
+let lbFilterPicks  = true;
 const REFRESH_MS   = 90_000;
 
 // ── Fetch ────────────────────────────────────────────────────
