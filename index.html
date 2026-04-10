@@ -731,6 +731,7 @@ function parseData(json) {
             status, position, sortOrder,
             thru: String(c.status?.displayThru ?? c.status?.thru ?? ''),
             rounds, roundTeeTimes,
+            teeTime: c.status?.teeTime ? new Date(c.status.teeTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null,
         };
     }
 }
@@ -912,11 +913,11 @@ function renderLeaderboard() {
             <td class="lb-pos">${g.position}</td>
             <td class="lb-name ${pool ? 'pool-pick' : ''}" ${pickersAttr}>${esc(g.name)}${badge}</td>
             <td class="lb-score ${cls(g.score)}">${g.scoreDisplay}</td>
-            <td class="lb-round">${g.rounds[1] ?? '--'}</td>
-            <td class="lb-round">${g.rounds[2] ?? '--'}</td>
-            <td class="lb-round r3">${g.rounds[3] ?? '--'}</td>
-            <td class="lb-round r4">${g.rounds[4] ?? '--'}</td>
-            <td class="lb-thru">${g.thru || '--'}</td>
+            <td class="lb-round">${g.rounds[1] !== undefined ? fmt(g.rounds[1]) : (g.roundTeeTimes?.[1] || '--')}</td>
+            <td class="lb-round">${g.rounds[2] !== undefined ? fmt(g.rounds[2]) : (g.roundTeeTimes?.[2] || '--')}</td>
+            <td class="lb-round r3">${g.rounds[3] !== undefined ? fmt(g.rounds[3]) : (g.roundTeeTimes?.[3] || '--')}</td>
+            <td class="lb-round r4">${g.rounds[4] !== undefined ? fmt(g.rounds[4]) : (g.roundTeeTimes?.[4] || '--')}</td>
+            <td class="lb-thru">${g.thru || (g.teeTime ? g.teeTime : '--')}</td>
         </tr>`;
     };
 
