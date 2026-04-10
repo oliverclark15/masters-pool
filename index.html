@@ -706,6 +706,7 @@ function parseData(json) {
 
         // Per-round to-par scores live in linescores[n].displayValue
         const rounds = {};
+        const roundTeeTimes = {};
         let total = 0;
         (c.linescores || []).forEach((ls, i) => {
             const v = ls.displayValue;
@@ -713,6 +714,10 @@ function parseData(json) {
                 const n = parseScore(v);
                 rounds[i + 1] = n;
                 total += n;
+            } else if (ls.teeTime) {
+                // No score yet — store tee time as HH:MM local
+                const d = new Date(ls.teeTime);
+                roundTeeTimes[i + 1] = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
             }
         });
 
@@ -725,7 +730,7 @@ function parseData(json) {
             scoreDisplay: fmt(total),
             status, position, sortOrder,
             thru: String(c.status?.displayThru ?? c.status?.thru ?? ''),
-            rounds,
+            rounds, roundTeeTimes,
         };
     }
 }
@@ -820,9 +825,9 @@ function renderPool() {
         const rbRows = sortedResults.map(g => {
             const rCells = roundNums.map(r => {
                 const v = g.data?.rounds?.[r];
-                return v !== undefined
-                    ? `<td class="${cls(v)}">${fmt(v)}</td>`
-                    : `<td class="no-score">—</td>`;
+                if (v !== undefined) return `<td class="${cls(v)}">${fmt(v)}</td>`;
+                const tt = g.data?.roundTeeTimes?.[r];
+                return tt ? `<td class="no-score" style="font-size:0.9em">${tt}</td>` : `<td class="no-score">—</td>`;
             }).join('');
             const tot = g.data ? `<td class="${cls(g.data.score)}">${g.data.scoreDisplay}</td>` : `<td class="no-score">?</td>`;
             return `<tr><td>${esc(g.name)}</td>${rCells}${tot}</tr>`;
