@@ -1291,20 +1291,17 @@ document.getElementById('leaderboard').addEventListener('mouseleave', () => {
 });
 
 // ── Pick highlight on click ───────────────────────────────────
-let highlightedGolfer = null;
+const highlightedGolfers = new Set();
 
 document.getElementById('poolStandings').addEventListener('click', e => {
     const tag = e.target.closest('[data-golfer]');
-    const name = tag?.dataset.golfer;
-    if (!name || name === highlightedGolfer) {
-        highlightedGolfer = null;
-        document.querySelectorAll('#poolStandings [data-golfer]').forEach(t => t.classList.remove('tag-highlight'));
-    } else {
-        highlightedGolfer = name;
-        document.querySelectorAll('#poolStandings [data-golfer]').forEach(t =>
-            t.classList.toggle('tag-highlight', t.dataset.golfer === name)
-        );
-    }
+    if (!tag) return;
+    const name = tag.dataset.golfer;
+    if (highlightedGolfers.has(name)) highlightedGolfers.delete(name);
+    else highlightedGolfers.add(name);
+    document.querySelectorAll('#poolStandings [data-golfer]').forEach(t =>
+        t.classList.toggle('tag-highlight', highlightedGolfers.has(t.dataset.golfer))
+    );
 });
 
 // ── Leaderboard filter toggle ─────────────────────────────────
