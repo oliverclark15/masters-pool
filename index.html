@@ -1392,12 +1392,13 @@ function renderMatrix() {
     svg += '</svg>';
 
     const legendItems = [
-        ['#0d4a28', '≤ -5'],
-        ['#1a5c38', '-3, -4'],
-        ['#52b788', '-1, -2'],
+        ['#00c853', '≤ -10'],
+        ['#1a5c38', '-7 to -9'],
+        ['#52b788', '-4 to -6'],
+        ['#a8d5b8', '-1 to -3'],
         ['#c9a84c', 'E'],
-        ['#e07b39', '+1, +2'],
-        ['#c0392b', '≥ +3'],
+        ['#e07b39', '+1 to +3'],
+        ['#c0392b', '≥ +4'],
         ['#ccc',    'Not started'],
     ];
 
@@ -1523,7 +1524,7 @@ function renderPopularity() {
         </div>
         ${rows}
         <div style="display:flex;gap:16px;margin-top:16px;font-size:0.75em;font-family:sans-serif;color:#666;flex-wrap:wrap;">
-            ${[[-5,'≤-5'],[-3,'-3,-4'],[-1,'-1,-2'],[0,'E'],[1,'+1,+2'],[3,'≥+3']].map(([s,l]) =>
+            ${[[-10,'≤-10'],[-8,'-7 to -9'],[-5,'-4 to -6'],[-2,'-1 to -3'],[0,'E'],[2,'+1 to +3'],[4,'≥+4']].map(([s,l]) =>
                 `<span style="display:flex;align-items:center;gap:5px;">
                     <span style="width:14px;height:14px;border-radius:3px;background:${heatColor(s)};display:inline-block"></span>${l}
                 </span>`
@@ -1647,12 +1648,13 @@ function holesLeftDisplay(n) {
 
 // ── Score → heat color ────────────────────────────────────────
 function heatColor(score) {
-    if (score <= -5) return '#0d4a28';
-    if (score <= -3) return '#1a5c38';
-    if (score <= -1) return '#52b788';
-    if (score === 0) return '#c9a84c';
-    if (score <= 2)  return '#e07b39';
-    return '#c0392b';
+    if (score <= -10) return '#00c853';   // tournament leaders
+    if (score <= -7)  return '#1a5c38';   // contention
+    if (score <= -4)  return '#52b788';   // under par
+    if (score <= -1)  return '#a8d5b8';   // slight under
+    if (score === 0)  return '#c9a84c';   // even
+    if (score <= 3)   return '#e07b39';   // over par
+    return '#c0392b';                      // struggling
 }
 
 // ── Helpers ──────────────────────────────────────────────────
