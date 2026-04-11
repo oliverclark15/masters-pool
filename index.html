@@ -1745,6 +1745,12 @@ document.getElementById('leaderboard').addEventListener('mouseover', e => {
 document.getElementById('leaderboard').addEventListener('mousemove', positionTooltip);
 document.getElementById('leaderboard').addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
 
+// Hide tooltip on touch outside a golfer element
+document.addEventListener('touchstart', e => {
+    if (!e.target.closest('[data-golfer]') && !e.target.closest('[data-pickers]'))
+        tooltip.style.display = 'none';
+});
+
 // Pool standings tag tooltip
 document.getElementById('poolStandings').addEventListener('mouseover', e => {
     const tag = e.target.closest('[data-golfer]');
