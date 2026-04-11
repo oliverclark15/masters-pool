@@ -337,6 +337,13 @@
             font-style: italic;
         }
 
+        .picker-tooltip .tt-subhead {
+            font-size: 0.82em;
+            color: #c9a84c;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -1680,16 +1687,12 @@ function setDot(s) {
     if (s === 'error')      d.classList.add('error');
 }
 
-// ── Picker tooltip ───────────────────────────────────────────
+// ── Tooltip helpers ───────────────────────────────────────────
 const tooltip = document.getElementById('pickerTooltip');
 
-document.getElementById('leaderboard').addEventListener('mouseover', e => {
-    const cell = e.target.closest('[data-pickers]');
-    if (!cell) return;
-    const pickers = cell.dataset.pickers ? cell.dataset.pickers.split(', ') : [];
-    const name    = cell.textContent.replace(/\(.*?\)/g, '').trim();
-    const bio     = GOLFER_BIO[name];
-    const gd      = find(name);
+function buildGolferTooltip(name, bodyContent) {
+    const bio = GOLFER_BIO[name];
+    const gd  = find(name);
 
     const headshotHtml = gd?.headshot
         ? `<img class="tt-headshot" src="${esc(gd.headshot)}" alt="${esc(name)}" onerror="this.style.display='none'">`
@@ -1699,46 +1702,62 @@ document.getElementById('leaderboard').addEventListener('mouseover', e => {
         : '';
     const countryHtml = (flagHtml || gd?.flagAlt)
         ? `<div class="tt-country">${flagHtml}${esc(gd.flagAlt || '')}</div>` : '';
-
-    const pickerLabel = pickers.length ? `Picked by · ${pickers.length}` : name;
     const bioHtml = bio ? `<div class="tt-bio">${[
         bio.birthPlace ? `📍 ${esc(bio.birthPlace)}` : '',
         bio.age        ? `Age ${bio.age}` : '',
     ].filter(Boolean).join(' · ')}${bio.college || bio.turnedPro ? `<br>${[
-        bio.college    ? `🎓 ${esc(bio.college)}` : '',
-        bio.turnedPro  ? `Pro ${bio.turnedPro}` : '',
+        bio.college   ? `🎓 ${esc(bio.college)}` : '',
+        bio.turnedPro ? `Pro ${bio.turnedPro}` : '',
     ].filter(Boolean).join(' · ')}` : ''}</div>` : '';
 
-    const bodyContent = pickers.length
-        ? `<div class="tt-names">${pickers.map(p => `<span class="tt-name">${esc(p)}</span>`).join('')}</div>`
-        : `<span class="tt-none">Not picked by anyone</span>`;
-
-    tooltip.innerHTML = `
-        <div class="tt-header">
-            ${headshotHtml}
-            <div class="tt-header-info">
-                <div class="tt-title">${esc(pickerLabel)}</div>
-                ${countryHtml}
-            </div>
+    return `<div class="tt-header">
+        ${headshotHtml}
+        <div class="tt-header-info">
+            <div class="tt-title">${esc(name)}</div>
+            ${countryHtml}
         </div>
-        <div class="tt-body">${bioHtml}${bodyContent}</div>`;
-    tooltip.style.display = 'block';
-});
+    </div>
+    <div class="tt-body">${bioHtml}${bodyContent}</div>`;
+}
 
-document.getElementById('leaderboard').addEventListener('mousemove', e => {
+function positionTooltip(e) {
     const pad = 14;
-    let x = e.clientX + pad;
-    let y = e.clientY + pad;
-    // Keep tooltip inside viewport
-    if (x + tooltip.offsetWidth > window.innerWidth - 8)  x = e.clientX - tooltip.offsetWidth - pad;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + tooltip.offsetWidth  > window.innerWidth  - 8) x = e.clientX - tooltip.offsetWidth  - pad;
     if (y + tooltip.offsetHeight > window.innerHeight - 8) y = e.clientY - tooltip.offsetHeight - pad;
     tooltip.style.left = x + 'px';
     tooltip.style.top  = y + 'px';
-});
+}
 
-document.getElementById('leaderboard').addEventListener('mouseleave', () => {
-    tooltip.style.display = 'none';
+// Leaderboard tooltip
+document.getElementById('leaderboard').addEventListener('mouseover', e => {
+    const cell = e.target.closest('[data-pickers]');
+    if (!cell) return;
+    const pickers = cell.dataset.pickers ? cell.dataset.pickers.split(', ') : [];
+    const name    = cell.textContent.replace(/\(.*?\)/g, '').trim();
+    const pickerLabel = pickers.length ? `Picked by · ${pickers.length}` : 'Not picked';
+    const body = pickers.length
+        ? `<div class="tt-subhead">${esc(pickerLabel)}</div><div class="tt-names">${pickers.map(p => `<span class="tt-name">${esc(p)}</span>`).join('')}</div>`
+        : `<span class="tt-none">Not picked by anyone</span>`;
+    tooltip.innerHTML = buildGolferTooltip(name, body);
+    tooltip.style.display = 'block';
 });
+document.getElementById('leaderboard').addEventListener('mousemove', positionTooltip);
+document.getElementById('leaderboard').addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+// Pool standings tag tooltip
+document.getElementById('poolStandings').addEventListener('mouseover', e => {
+    const tag = e.target.closest('[data-golfer]');
+    if (!tag) return;
+    const name = tag.dataset.golfer;
+    const gd   = find(name);
+    const scoreStr = gd ? `${gd.scoreDisplay} · ${gd.position} · Thru ${gd.thru || '--'}` : '';
+    const body = scoreStr ? `<div class="tt-subhead">${esc(scoreStr)}</div>` : '';
+    tooltip.innerHTML = buildGolferTooltip(name, body);
+    tooltip.style.display = 'block';
+});
+document.getElementById('poolStandings').addEventListener('mousemove', positionTooltip);
+document.getElementById('poolStandings').addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
 
 // ── Pick highlight on click ───────────────────────────────────
 const highlightedGolfers = new Set();
