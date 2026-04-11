@@ -295,6 +295,13 @@
             font-style: italic;
         }
 
+        .picker-tooltip .tt-bio {
+            font-size: 0.78em;
+            color: #aaa;
+            margin: 4px 0 6px;
+            line-height: 1.6;
+        }
+
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -655,6 +662,30 @@
 
 <script>
 // ============================================================
+// ============================================================
+//  GOLFER BIO DATA (scraped from ESPN athlete API)
+// ============================================================
+const GOLFER_BIO = {
+    "Patrick Reed":      { age: 35, country: "USA",              birthPlace: "San Antonio, TX",         college: "Augusta",         turnedPro: 2011 },
+    "Rory McIlroy":      { age: 36, country: "Northern Ireland", birthPlace: "Holywood, N. Ireland",    college: null,              turnedPro: 2007 },
+    "Scottie Scheffler": { age: 29, country: "USA",              birthPlace: "Dallas, TX",              college: "Texas",           turnedPro: 2018 },
+    "Xander Schauffele": { age: 32, country: "USA",              birthPlace: "La Jolla, CA",            college: "San Diego State", turnedPro: 2015 },
+    "Jordan Spieth":     { age: 32, country: "USA",              birthPlace: "Dallas, TX",              college: "Texas",           turnedPro: 2012 },
+    "Justin Rose":       { age: 45, country: "England",          birthPlace: "Johannesburg, S. Africa", college: null,              turnedPro: 1998 },
+    "Tommy Fleetwood":   { age: 35, country: "England",          birthPlace: "Southport, England",      college: null,              turnedPro: 2010 },
+    "Jason Day":         { age: 38, country: "Australia",        birthPlace: "Beaudesert, QLD",         college: null,              turnedPro: 2006 },
+    "Sam Burns":         { age: 29, country: "USA",              birthPlace: "Shreveport, LA",          college: "LSU",             turnedPro: 2017 },
+    "Shane Lowry":       { age: 39, country: "Ireland",          birthPlace: "Clara, Ireland",          college: null,              turnedPro: 2009 },
+    "Ludvig Åberg":      { age: 26, country: "Sweden",           birthPlace: "Eslöv, Sweden",           college: "Texas Tech",      turnedPro: 2023 },
+    "Adam Scott":        { age: 45, country: "Australia",        birthPlace: "Adelaide, SA",            college: "UNLV",            turnedPro: 2000 },
+    "Max Homa":          { age: 35, country: "USA",              birthPlace: "Burbank, CA",             college: "California",      turnedPro: 2013 },
+    "Brooks Koepka":     { age: 35, country: "USA",              birthPlace: "West Palm Beach, FL",     college: "Florida State",   turnedPro: 2012 },
+    "Nick Taylor":       { age: 37, country: "Canada",           birthPlace: "Winnipeg, MB",            college: "Washington",      turnedPro: 2010 },
+    "Cameron Young":     { age: 28, country: "USA",              birthPlace: "Scarborough, NY",         college: "Wake Forest",     turnedPro: 2019 },
+    "Gary Woodland":     { age: 41, country: "USA",              birthPlace: "Topeka, KS",              college: "Kansas",          turnedPro: 2007 },
+    "Kurt Kitayama":     { age: 33, country: "USA",              birthPlace: "Chico, CA",               college: "UNLV",            turnedPro: 2015 },
+};
+
 //  POOL PICKS — edit this to set each member's four golfers.
 //  Names must match the ESPN leaderboard spelling exactly.
 // ============================================================
@@ -1618,11 +1649,18 @@ document.getElementById('leaderboard').addEventListener('mouseover', e => {
     if (!cell) return;
     const pickers = cell.dataset.pickers ? cell.dataset.pickers.split(', ') : [];
     const name    = cell.textContent.replace(/\(.*?\)/g, '').trim();
+    const bio     = GOLFER_BIO[name];
+    const bioHtml = bio ? `<div class="tt-bio">
+        ${bio.birthPlace ? `📍 ${esc(bio.birthPlace)}` : ''}
+        ${bio.age ? ` · Age ${bio.age}` : ''}
+        ${bio.college ? `<br>🎓 ${esc(bio.college)}` : ''}
+        ${bio.turnedPro ? ` · Pro ${bio.turnedPro}` : ''}
+    </div>` : '';
     if (pickers.length) {
         const tags = pickers.map(p => `<span class="tt-name">${esc(p)}</span>`).join('');
-        tooltip.innerHTML = `<div class="tt-title">Picked by · ${pickers.length}</div><div class="tt-names">${tags}</div>`;
+        tooltip.innerHTML = `<div class="tt-title">Picked by · ${pickers.length}</div>${bioHtml}<div class="tt-names">${tags}</div>`;
     } else {
-        tooltip.innerHTML = `<div class="tt-title">${esc(name)}</div><span class="tt-none">Not picked by anyone</span>`;
+        tooltip.innerHTML = `<div class="tt-title">${esc(name)}</div>${bioHtml}<span class="tt-none">Not picked by anyone</span>`;
     }
     tooltip.style.display = 'block';
 });
