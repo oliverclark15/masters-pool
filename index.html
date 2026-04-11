@@ -257,24 +257,66 @@
             color: #e8f5e9;
             border: 1px solid #c9a84c;
             border-radius: 7px;
-            padding: 9px 13px;
+            padding: 0;
             font-size: 0.82em;
             font-family: sans-serif;
             white-space: normal;
-            max-width: 260px;
+            max-width: 280px;
             z-index: 999;
             pointer-events: none;
             box-shadow: 0 4px 16px rgba(0,0,0,0.25);
             line-height: 1.6;
+            overflow: hidden;
         }
+
+        .tt-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid rgba(201,168,76,0.3);
+        }
+
+        .tt-headshot {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            object-fit: cover;
+            object-position: top;
+            border: 2px solid #c9a84c;
+            flex-shrink: 0;
+            background: #0f3d25;
+        }
+
+        .tt-header-info { flex: 1; min-width: 0; }
 
         .picker-tooltip .tt-title {
             color: #c9a84c;
             font-weight: bold;
-            font-size: 0.85em;
+            font-size: 0.9em;
             letter-spacing: 0.5px;
-            text-transform: uppercase;
-            margin-bottom: 5px;
+        }
+
+        .tt-flag {
+            height: 13px;
+            vertical-align: middle;
+            margin-right: 4px;
+            border-radius: 2px;
+        }
+
+        .tt-country {
+            font-size: 0.75em;
+            color: #a8d5b8;
+            margin-top: 1px;
+        }
+
+        .tt-body { padding: 8px 12px 10px; }
+
+        .picker-tooltip .tt-bio {
+            font-size: 0.78em;
+            color: #a8c8a8;
+            margin-bottom: 7px;
+            line-height: 1.7;
         }
 
         .picker-tooltip .tt-names {
@@ -293,13 +335,6 @@
         .picker-tooltip .tt-none {
             color: #888;
             font-style: italic;
-        }
-
-        .picker-tooltip .tt-bio {
-            font-size: 0.78em;
-            color: #aaa;
-            margin: 4px 0 6px;
-            line-height: 1.6;
         }
 
         .empty-state {
@@ -798,6 +833,7 @@ function parseData(json) {
         const position = c.status?.position?.displayName || '--';
         const sortOrder = parseInt(c.status?.position?.id || '999', 10) || 999;
 
+        const athleteId = c.athlete?.id;
         golfersData[name] = {
             name, score: total,
             scoreDisplay: fmt(total),
@@ -805,6 +841,9 @@ function parseData(json) {
             thru: String(c.status?.displayThru ?? c.status?.thru ?? ''),
             rounds, roundTeeTimes,
             teeTime: c.status?.teeTime ? new Date(c.status.teeTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null,
+            headshot: athleteId ? `https://a.espncdn.com/i/headshots/golf/players/full/${athleteId}.png` : null,
+            flagUrl:  c.athlete?.flag?.href || null,
+            flagAlt:  c.athlete?.flag?.alt  || null,
         };
     }
 }
@@ -1650,18 +1689,39 @@ document.getElementById('leaderboard').addEventListener('mouseover', e => {
     const pickers = cell.dataset.pickers ? cell.dataset.pickers.split(', ') : [];
     const name    = cell.textContent.replace(/\(.*?\)/g, '').trim();
     const bio     = GOLFER_BIO[name];
-    const bioHtml = bio ? `<div class="tt-bio">
-        ${bio.birthPlace ? `📍 ${esc(bio.birthPlace)}` : ''}
-        ${bio.age ? ` · Age ${bio.age}` : ''}
-        ${bio.college ? `<br>🎓 ${esc(bio.college)}` : ''}
-        ${bio.turnedPro ? ` · Pro ${bio.turnedPro}` : ''}
-    </div>` : '';
-    if (pickers.length) {
-        const tags = pickers.map(p => `<span class="tt-name">${esc(p)}</span>`).join('');
-        tooltip.innerHTML = `<div class="tt-title">Picked by · ${pickers.length}</div>${bioHtml}<div class="tt-names">${tags}</div>`;
-    } else {
-        tooltip.innerHTML = `<div class="tt-title">${esc(name)}</div>${bioHtml}<span class="tt-none">Not picked by anyone</span>`;
-    }
+    const gd      = find(name);
+
+    const headshotHtml = gd?.headshot
+        ? `<img class="tt-headshot" src="${esc(gd.headshot)}" alt="${esc(name)}" onerror="this.style.display='none'">`
+        : '';
+    const flagHtml = gd?.flagUrl
+        ? `<img class="tt-flag" src="${esc(gd.flagUrl)}" alt="${esc(gd.flagAlt || '')}">`
+        : '';
+    const countryHtml = (flagHtml || gd?.flagAlt)
+        ? `<div class="tt-country">${flagHtml}${esc(gd.flagAlt || '')}</div>` : '';
+
+    const pickerLabel = pickers.length ? `Picked by · ${pickers.length}` : name;
+    const bioHtml = bio ? `<div class="tt-bio">${[
+        bio.birthPlace ? `📍 ${esc(bio.birthPlace)}` : '',
+        bio.age        ? `Age ${bio.age}` : '',
+    ].filter(Boolean).join(' · ')}${bio.college || bio.turnedPro ? `<br>${[
+        bio.college    ? `🎓 ${esc(bio.college)}` : '',
+        bio.turnedPro  ? `Pro ${bio.turnedPro}` : '',
+    ].filter(Boolean).join(' · ')}` : ''}</div>` : '';
+
+    const bodyContent = pickers.length
+        ? `<div class="tt-names">${pickers.map(p => `<span class="tt-name">${esc(p)}</span>`).join('')}</div>`
+        : `<span class="tt-none">Not picked by anyone</span>`;
+
+    tooltip.innerHTML = `
+        <div class="tt-header">
+            ${headshotHtml}
+            <div class="tt-header-info">
+                <div class="tt-title">${esc(pickerLabel)}</div>
+                ${countryHtml}
+            </div>
+        </div>
+        <div class="tt-body">${bioHtml}${bodyContent}</div>`;
     tooltip.style.display = 'block';
 });
 
