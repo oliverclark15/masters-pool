@@ -635,7 +635,7 @@
 
 <div class="status-bar">
     <span class="dot" id="dot"></span>
-    <span id="statusText">Loading live scores…</span>
+    <span id="statusText">Final · Masters Tournament · 2026</span>
 </div>
 
 <div class="container">
@@ -763,95 +763,57 @@ const POOL_MEMBERS = [
 
 let golfersData    = {};
 let tournamentName = "Masters Tournament";
-let roundStatus    = "";
+let roundStatus    = "Final";
 let lbFilterPicks  = true;
 let poolRoundFilter = 'total'; // 'total' | 1 | 2 | 3 | 4
 let lbSort = 'total'; // 'total' | 1 | 2 | 3 | 4
-const REFRESH_MS   = 90_000;
 
-// ── Fetch ────────────────────────────────────────────────────
-async function fetchScores() {
-    setDot('refreshing');
-    setStatus('Refreshing scores…');
-    try {
-        const res = await fetch(
-            'https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga',
-            { cache: 'no-store' }
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        parseData(json);
-        const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setStatus(`Live · ${tournamentName} · ${roundStatus} · Updated ${t}`);
-        setDot('ok');
-        renderAll();
-    } catch (err) {
-        setDot('error');
-        setStatus(`Error: ${err.message} — retrying in 90s`);
-        document.getElementById('leaderboard').innerHTML =
-            `<div class="empty-state" style="color:#e74c3c">Could not load scores.<br><small>${err.message}</small></div>`;
-    }
-}
+// ── Final Masters 2026 results (static) ──────────────────────
+function loadStaticData() {
+    const FINAL = [
+        { name: "Rory McIlroy",      pos: "1",   sort: 1,  score: -12, r: [-5,-7, 1,-1] },
+        { name: "Scottie Scheffler", pos: "2",   sort: 2,  score: -11, r: [-2, 2,-7,-4] },
+        { name: "Justin Rose",       pos: "T3",  sort: 3,  score: -10, r: [-2,-3,-3,-2] },
+        { name: "Cameron Young",     pos: "T3",  sort: 4,  score: -10, r: [ 1,-5,-7, 1] },
+        { name: "Sam Burns",         pos: "5",   sort: 5,  score:  -9, r: [-5,-1,-4, 1] },
+        { name: "Max Homa",          pos: "T6",  sort: 6,  score:  -8, r: [ 0,-2,-1,-5] },
+        { name: "Xander Schauffele", pos: "T6",  sort: 7,  score:  -8, r: [-2, 0,-2,-4] },
+        { name: "Jordan Spieth",     pos: "T8",  sort: 8,  score:  -5, r: [ 0, 1,-2,-4] },
+        { name: "Brooks Koepka",     pos: "T8",  sort: 9,  score:  -5, r: [ 0,-3,-1,-1] },
+        { name: "Patrick Reed",      pos: "T8",  sort: 10, score:  -5, r: [-3,-3, 0, 1] },
+        { name: "Jason Day",         pos: "T8",  sort: 11, score:  -5, r: [-3,-1,-4, 3] },
+        { name: "Ludvig Åberg",      pos: "T12", sort: 12, score:  -3, r: [ 2,-2,-3, 0] },
+        { name: "Adam Scott",        pos: "T13", sort: 13, score:  -2, r: [ 0, 2,-2,-2] },
+        { name: "Shane Lowry",       pos: "T14", sort: 14, score:  -1, r: [-2,-3,-4, 8] },
+        { name: "Tommy Fleetwood",   pos: "T15", sort: 15, score:   0, r: [-1,-4, 1, 4] },
+        { name: "Gary Woodland",     pos: "T15", sort: 16, score:   0, r: [-1, 3, 4,-6] },
+        { name: "Nick Taylor",       pos: "T17", sort: 17, score:   2, r: [-1, 0,-2, 5] },
+        { name: "Kurt Kitayama",     pos: "T18", sort: 18, score:   7, r: [-3, 7, 3, 0] },
+    ];
 
-function parseData(json) {
     golfersData = {};
-    if (!json.events?.length) throw new Error('No event data');
-
-    const event = json.events.find(e =>
-        /masters/i.test(e.name || '') || /masters/i.test(e.shortName || '')
-    ) || json.events[0];
-
-    tournamentName = event.name || 'Masters Tournament';
-    const comp = event.competitions?.[0];
-    if (!comp) return;
-
-    roundStatus = comp.status?.type?.shortDetail
-               || comp.status?.type?.description
-               || '';
-
-    document.getElementById('roundBadge').textContent = roundStatus || 'Live';
-
-    for (const c of (comp.competitors || [])) {
-        const name = c.athlete?.displayName || c.displayName || '?';
-        const stat = (c.status?.type?.name || '').toLowerCase();
-        const status = stat.includes('cut') ? 'cut'
-                     : stat.includes('wd') || stat.includes('withdraw') ? 'wd'
-                     : stat.includes('dq') ? 'dq' : 'active';
-
-        // Per-round to-par scores live in linescores[n].displayValue
-        const rounds = {};
-        const roundTeeTimes = {};
-        let total = 0;
-        (c.linescores || []).forEach((ls, i) => {
-            const v = ls.displayValue;
-            if (v && v !== '-' && v !== '--') {
-                const n = parseScore(v);
-                rounds[i + 1] = n;
-                total += n;
-            } else if (ls.teeTime) {
-                // No score yet — store tee time as HH:MM local
-                const d = new Date(ls.teeTime);
-                roundTeeTimes[i + 1] = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            }
-        });
-
-        // Position from status.position, fall back to sortOrder for stable sort
-        const position = c.status?.position?.displayName || '--';
-        const sortOrder = parseInt(c.status?.position?.id || '999', 10) || 999;
-
-        const athleteId = c.athlete?.id;
-        golfersData[name] = {
-            name, score: total,
-            scoreDisplay: fmt(total),
-            status, position, sortOrder,
-            thru: String(c.status?.displayThru ?? c.status?.thru ?? ''),
-            rounds, roundTeeTimes,
-            teeTime: c.status?.teeTime ? new Date(c.status.teeTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null,
-            headshot: athleteId ? `https://a.espncdn.com/i/headshots/golf/players/full/${athleteId}.png` : null,
-            flagUrl:  c.athlete?.flag?.href || null,
-            flagAlt:  c.athlete?.flag?.alt  || null,
+    FINAL.forEach(g => {
+        golfersData[g.name] = {
+            name: g.name,
+            score: g.score,
+            scoreDisplay: fmt(g.score),
+            status: 'active',
+            position: g.pos,
+            sortOrder: g.sort,
+            thru: 'F',
+            rounds: { 1: g.r[0], 2: g.r[1], 3: g.r[2], 4: g.r[3] },
+            roundTeeTimes: {},
+            teeTime: null,
+            headshot: null,
+            flagUrl: null,
+            flagAlt: null,
         };
-    }
+    });
+
+    document.getElementById('roundBadge').textContent = 'Final';
+    setStatus('Final · Masters Tournament · 2026');
+    setDot('ok');
+    renderAll();
 }
 
 // ── Render pool standings ────────────────────────────────────
@@ -1891,8 +1853,7 @@ function animateScores() {
 
 // ── Boot ─────────────────────────────────────────────────────
 initDarkMode();
-fetchScores();
-setInterval(fetchScores, REFRESH_MS);
+loadStaticData();
 </script>
 </body>
 </html>
